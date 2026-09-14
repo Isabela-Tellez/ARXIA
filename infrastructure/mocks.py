@@ -1,95 +1,125 @@
 """
-Mock Providers utilizados durante el desarrollo de SIGNA.
+Mock Providers utilizados durante el desarrollo de ARXIA.
 
-Simulan las respuestas de un modelo Local y un modelo de Cloud ç
-sin depender todavía de Ollama ni de una API externa.
+Simulan las respuestas de Gemini y GPT sin depender todavía
+de APIs externas.
 """
 
 from domain.enums import (
-    Category, Department, ModelStatus, 
-    Provider, Urgency
+    AnalysisCategory,
+    AnalysisStatus,
+    AnalysisUrgency,
+    Provider,
+    RecommendationAction,
+    TyreCompound,
+)
+from domain.schemas import (
+    AIAnalysis,
+    ModelMetrics,
+    RaceEvent,
+    Recommendation,
 )
 
-from domain.schemas import(
-    Classification, Incident, ModelMetrics, ModelResult
-)
+
+# ============================================================================
+# HELPERS
+# ============================================================================
+
 
 def _build_metrics() -> ModelMetrics:
     """Genera métricas ficticias para los modelos mock."""
 
     return ModelMetrics(
-        input_tokens = 50,
-        output_tokens = 50,
-        total_tokens = 100,
-        latency_ms = 100.0,
-        cost = 0.0,
-        retries = 0,
+        input_tokens=100,
+        output_tokens=50,
+        total_tokens=150,
+        latency_ms=100.0,
+        cost=0.0,
+        retries=0,
     )
 
-def _build_classification(
-    incident: Incident,
+
+def _build_recommendation(
     *,
-    category: Category,
-    urgency: Urgency,
-    department: Department,
-    confidence: float,
-) -> Classification:
-    """Construye una clasificación mock válida"""
+    action: RecommendationAction = RecommendationAction.PIT_STOP,
+    target_lap: int = 20,
+    tyre_compound: TyreCompound = TyreCompound.MEDIUM,
+    confidence: float = 0.92,
+) -> Recommendation:
+    """Construye una recomendación estratégica mock válida."""
 
-    return Classification(
-        category = category,
-        urgency = urgency,
-        department = department,
-        summary = "Incidencia simulada para realizar pruebas completas del sistema SIGNA hoy",
-        explanation = (
-            f"Clasificación simulada para la incidencia {incident.text}"
+    return Recommendation(
+        action=action,
+        target_lap=target_lap,
+        tyre_compound=tyre_compound,
+        confidence=confidence,
+        rationale=(
+            "Pit stop recomendado para aprovechar la ventana "
+            "estratégica y mantener el ritmo competitivo."
         ),
-        confidence = confidence,
     )
 
-class MockLocalProvider:
-    """Simula el modoelo local de SIGNA"""
 
-    def analyze(self, incident: Incident) -> ModelResult:
-        """Devuelve una clasificación simulada."""
+def _build_analysis(
+    *,
+    provider: Provider,
+    model: str,
+    confidence: float,
+) -> AIAnalysis:
+    """Construye un análisis mock válido."""
 
-        classification = _build_classification(
-            incident,
-            category = Category.CONNECTIVITY,
-            urgency = Urgency.MEDIUM,
-            department = Department.TECHNICAL_SUPPORT,
-            confidence = 0.95,
+    return AIAnalysis(
+        provider=provider,
+        model=model,
+        status=AnalysisStatus.SUCCESS,
+        category=AnalysisCategory.RACE_STRATEGY,
+        urgency=AnalysisUrgency.MEDIUM,
+        confidence=confidence,
+        summary=(
+            "Análisis estratégico simulado para la situación "
+            "actual de carrera."
+        ),
+        reasoning=(
+            "El modelo identifica una ventana estratégica favorable "
+            "para realizar una parada en boxes."
+        ),
+        recommendation=_build_recommendation(),
+        metrics=_build_metrics(),
+        error=None,
+    )
+
+
+# ============================================================================
+# GEMINI MOCK
+# ============================================================================
+
+
+class MockGeminiProvider:
+    """Simula el proveedor Gemini de ARXIA."""
+
+    def analyze(self, race_event: RaceEvent) -> AIAnalysis:
+        """Devuelve un análisis estratégico simulado."""
+
+        return _build_analysis(
+            provider=Provider.GEMINI,
+            model="mock-gemini",
+            confidence=0.95,
         )
 
-        return ModelResult(
-            provider=Provider.LOCAL,
-            model="mock-local",
-            classification= classification,
-            metrics=_build_metrics(),
-            status=ModelStatus.SUCCESS,
-            error=None,
-        )
+
+# ============================================================================
+# GPT MOCK
+# ============================================================================
 
 
-class MockCloudProvider:
-    """Simula el modelo Cloud de SIGNA."""
+class MockGPTProvider:
+    """Simula el proveedor GPT de ARXIA."""
 
-    def analyze(self, incident: Incident) -> ModelResult:
-        """Devuelve una clasificación simulada."""
+    def analyze(self, race_event: RaceEvent) -> AIAnalysis:
+        """Devuelve un análisis estratégico simulado."""
 
-        classification = _build_classification(
-            incident,
-            category=Category.CONNECTIVITY,
-            urgency=Urgency.MEDIUM,
-            department=Department.TECHNICAL_SUPPORT,
+        return _build_analysis(
+            provider=Provider.GPT,
+            model="mock-gpt",
             confidence=0.92,
-        )
-
-        return ModelResult(
-            provider=Provider.CLOUD,
-            model="mock-cloud",
-            classification=classification,
-            metrics=_build_metrics(),
-            status=ModelStatus.SUCCESS,
-            error=None,
         )
