@@ -5,7 +5,7 @@ Simulan las respuestas de Gemini y Ollama sin depender todavía
 de APIs externas.
 """
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisCategory,
     AnalysisStatus,
     AnalysisUrgency,
@@ -13,7 +13,7 @@ from domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     ModelMetrics,
     RaceEvent,

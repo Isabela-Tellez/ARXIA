@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, ValidationError
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisCategory,
     AnalysisStatus,
     AnalysisUrgency,
@@ -20,7 +20,7 @@ from domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     ModelMetrics,
     RaceEvent,

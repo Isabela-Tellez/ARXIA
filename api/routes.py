@@ -7,7 +7,7 @@ import os
 from fastapi import APIRouter, HTTPException
 
 from application.signa_core import SignaCore
-from domain.schemas import Incident, TriageResult
+from core.domain.schemas import Incident, TriageResult
 from infrastructure.mocks import (
     MockCloudProvider,
     MockLocalProvider,

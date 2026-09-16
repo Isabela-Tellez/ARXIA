@@ -1,7 +1,7 @@
 import pytest
 
-from application.decision_engine import DecisionEngine
-from domain.enums import (
+from core.application.decision_engine import DecisionEngine
+from core.domain.enums import (
     AgreementLevel,
     AnalysisCategory,
     AnalysisStatus,
@@ -14,7 +14,7 @@ from domain.enums import (
     RiskLevel,
     TyreCompound,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     Comparison,
     ModelMetrics,

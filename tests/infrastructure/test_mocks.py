@@ -1,10 +1,10 @@
-from domain.enums import (
+from core.domain.enums import (
     AnalysisStatus,
     Provider,
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import RaceEvent
+from core.domain.schemas import RaceEvent
 
 from infrastructure.mocks import (
     MockGeminiProvider,

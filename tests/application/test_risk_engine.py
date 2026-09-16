@@ -1,8 +1,8 @@
 import pytest
 
-from application.risk_engine import RiskEngine
+from core.application.risk_engine import RiskEngine
 
-from domain.enums import (
+from core.domain.enums import (
     AgreementLevel,
     AnalysisCategory,
     AnalysisStatus,
@@ -17,7 +17,7 @@ from domain.enums import (
     EventType,
 )
 
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     Comparison,
     ModelMetrics,

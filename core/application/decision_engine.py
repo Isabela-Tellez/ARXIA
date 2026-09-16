@@ -8,7 +8,7 @@ de revisión humana.
 El motor es determinista y no depende de ningún proveedor de IA.
 """
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisStatus,
     DecisionReason,
     DecisionType,
@@ -16,7 +16,7 @@ from domain.enums import (
     RecommendationAction,
     RiskLevel,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     ArxiaDecision,
     Comparison,

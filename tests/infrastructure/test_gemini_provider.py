@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisCategory,
     AnalysisStatus,
     AnalysisUrgency,
@@ -10,7 +10,7 @@ from domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import RaceEvent
+from core.domain.schemas import RaceEvent
 
 from infrastructure.gemini_provider import (
     GeminiAnalysisResponse,

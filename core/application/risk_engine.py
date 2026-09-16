@@ -6,14 +6,14 @@ RiskAssessment. No depende de ningún proveedor de IA.
 """
 import math
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisStatus,
     AgreementLevel,
     ComparisonStatus,
     RiskFactorType,
     RiskLevel,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis,
     Comparison,
     RaceEvent,

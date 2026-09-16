@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from domain.enums import (
+from core.domain.enums import (
     AgreementLevel, AnalysisCategory, AnalysisStatus, AnalysisUrgency, ComparisonField,
     ComparisonStatus, DecisionReason, DecisionType, EventType, Provider, RaceSession,
     RecommendationAction, ReviewStatus, RiskFactorType, RiskLevel, TyreCompound,
     WeatherCondition,
 )
-from domain.schemas import (
+from core.domain.schemas import (
     AIAnalysis, ArxiaDecision, ArxiaResult, Comparison, FieldComparison, HumanReview,
     ModelMetrics, RaceEvent, Recommendation, RiskAssessment, RiskFactor, WeatherData,
 )
