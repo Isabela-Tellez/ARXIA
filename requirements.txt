@@ -1,6 +1,7 @@
-fastapi==0.141.1 
-uvicorn==0.52.4 
-pydantic==2.13.5 
-pytest==8.4.2 
-requests==2.34.2
+fastapi==0.141.1
 google-genai==2.23.0
+uvicorn==0.52.4
+openai==3.14.0
+pydantic==2.13.5
+pytest==8.4.2
+requests==2.34.2

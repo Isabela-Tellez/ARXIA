@@ -97,7 +97,7 @@ def build_comparison(
             {
                 "field": "category",
                 "gemini_value": "race_strategy",
-                "gpt_value": "race_strategy",
+                "ollama_value": "race_strategy",
                 "agreement": "agree",
             }
         ],
@@ -161,13 +161,13 @@ def test_provider_failure_requires_human_review():
         error="Gemini provider failed.",
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -196,7 +196,7 @@ def test_high_or_critical_risk_requires_human_review(
     engine = build_engine()
 
     gemini = build_analysis(provider=Provider.GEMINI)
-    gpt = build_analysis(provider=Provider.GPT)
+    ollama = build_analysis(provider=Provider.OLLAMA)
 
     score = {
         RiskLevel.HIGH: 60,
@@ -205,7 +205,7 @@ def test_high_or_critical_risk_requires_human_review(
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(
             score=score,
@@ -222,11 +222,11 @@ def test_medium_risk_requires_human_review():
     engine = build_engine()
 
     gemini = build_analysis(provider=Provider.GEMINI)
-    gpt = build_analysis(provider=Provider.GPT)
+    ollama = build_analysis(provider=Provider.OLLAMA)
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(
             score=30,
@@ -248,7 +248,7 @@ def test_incomplete_comparison_requires_human_review():
     engine = build_engine()
 
     gemini = build_analysis(provider=Provider.GEMINI)
-    gpt = build_analysis(provider=Provider.GPT)
+    ollama = build_analysis(provider=Provider.OLLAMA)
 
     comparison = build_comparison(
         status=ComparisonStatus.INSUFFICIENT_DATA,
@@ -257,7 +257,7 @@ def test_incomplete_comparison_requires_human_review():
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=comparison,
         risk_assessment=build_risk(),
     )
@@ -271,7 +271,7 @@ def test_model_disagreement_requires_human_review():
     engine = build_engine()
 
     gemini = build_analysis(provider=Provider.GEMINI)
-    gpt = build_analysis(provider=Provider.GPT)
+    ollama = build_analysis(provider=Provider.OLLAMA)
 
     comparison = build_comparison(
         strategic_agreement=AgreementLevel.DISAGREE,
@@ -279,7 +279,7 @@ def test_model_disagreement_requires_human_review():
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=comparison,
         risk_assessment=build_risk(),
     )
@@ -303,15 +303,15 @@ def test_low_model_confidence_requires_human_review():
         recommendation_confidence=0.90,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         confidence=0.95,
         recommendation_confidence=0.95,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -330,15 +330,15 @@ def test_low_recommendation_confidence_requires_human_review():
         recommendation_confidence=0.70,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         confidence=0.95,
         recommendation_confidence=0.95,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -356,15 +356,15 @@ def test_confidence_exactly_at_threshold_is_accepted():
         recommendation_confidence=0.80,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         confidence=0.80,
         recommendation_confidence=0.80,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -386,15 +386,15 @@ def test_agreement_low_risk_and_high_confidence_produces_automatic_decision():
         recommendation_confidence=0.92,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         confidence=0.90,
         recommendation_confidence=0.88,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -423,14 +423,14 @@ def test_matching_actions_are_selected():
         action=RecommendationAction.PUSH,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         action=RecommendationAction.PUSH,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -451,14 +451,14 @@ def test_matching_target_laps_are_selected():
         target_lap=25,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         target_lap=25,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -479,14 +479,14 @@ def test_matching_tyre_compounds_are_selected():
         tyre_compound=TyreCompound.SOFT,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         tyre_compound=TyreCompound.SOFT,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )
@@ -502,14 +502,14 @@ def test_missing_tyre_compound_from_one_model_uses_available_value():
         tyre_compound=TyreCompound.SOFT,
     )
 
-    gpt = build_analysis(
-        provider=Provider.GPT,
+    ollama = build_analysis(
+        provider=Provider.OLLAMA,
         tyre_compound=None,
     )
 
     result = engine.decide(
         gemini_analysis=gemini,
-        gpt_analysis=gpt,
+        ollama_analysis=ollama,
         comparison=build_comparison(),
         risk_assessment=build_risk(),
     )

@@ -94,11 +94,11 @@ def gemini_analysis(recommendation, model_metrics):
 
 
 @pytest.fixture
-def gpt_analysis():
-    """Análisis válido de GPT."""
+def ollama_analysis():
+    """Análisis válido de OLLAMA."""
     return AIAnalysis(
-        provider=Provider.GPT,
-        model="gpt-5",
+        provider=Provider.OLLAMA,
+        model="ollama-5",
         status=AnalysisStatus.SUCCESS,
         category=AnalysisCategory.TYRE_STRATEGY,
         urgency=AnalysisUrgency.HIGH,
@@ -126,7 +126,7 @@ def gpt_analysis():
 
 @pytest.fixture
 def comparison():
-    """Comparación válida entre Gemini y GPT."""
+    """Comparación válida entre Gemini y OLLAMA."""
     fields = [
         (
             ComparisonField.CATEGORY,
@@ -172,10 +172,10 @@ def comparison():
             FieldComparison(
                 field=field,
                 gemini_value=gemini,
-                gpt_value=gpt,
+                ollama_value=ollama,
                 agreement=agreement,
             )
-            for field, gemini, gpt, agreement in fields
+            for field, gemini, ollama, agreement in fields
         ],
         strategic_agreement=AgreementLevel.AGREE,
         confidence_difference=0.04,
@@ -220,7 +220,7 @@ def automatic_decision():
         reason=DecisionReason.LOW_RISK,
         supporting_models=[
             Provider.GEMINI,
-            Provider.GPT,
+            Provider.OLLAMA,
         ],
         rationale="Both models agree strategically and automation risk is low.",
     )
@@ -487,7 +487,7 @@ class TestFieldComparison:
     """Tests de FieldComparison."""
 
     @pytest.mark.parametrize(
-        "agreement,gemini,gpt",
+        "agreement,gemini,ollama",
         [
             (
                 AgreementLevel.AGREE,
@@ -506,12 +506,12 @@ class TestFieldComparison:
             ),
         ],
     )
-    def test_agreement(self, agreement, gemini, gpt):
+    def test_agreement(self, agreement, gemini, ollama):
         """Verifica los diferentes niveles de acuerdo."""
         result = FieldComparison(
             field=ComparisonField.ACTION,
             gemini_value=gemini,
-            gpt_value=gpt,
+            ollama_value=ollama,
             agreement=agreement,
         )
 
@@ -554,7 +554,7 @@ class TestComparison:
                     FieldComparison(
                         field=ComparisonField.ACTION,
                         gemini_value="pit_stop",
-                        gpt_value="pit_stop",
+                        ollama_value="pit_stop",
                         agreement=AgreementLevel.AGREE,
                     )
                 ],
@@ -577,7 +577,7 @@ class TestComparison:
                     FieldComparison(
                         field=ComparisonField.ACTION,
                         gemini_value="pit_stop",
-                        gpt_value="pit_stop",
+                        ollama_value="pit_stop",
                         agreement=AgreementLevel.AGREE,
                     )
                 ],
@@ -737,7 +737,7 @@ class TestArxiaDecision:
                 reason=reason,
                 supporting_models=[
                     Provider.GEMINI,
-                    Provider.GPT,
+                    Provider.OLLAMA,
                 ],
                 rationale="High risk requires human review.",
             )
@@ -860,7 +860,7 @@ class TestArxiaResult:
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
         risk_assessment,
         automatic_decision,
@@ -869,21 +869,21 @@ class TestArxiaResult:
         result = ArxiaResult(
             race_event=race_event,
             gemini_analysis=gemini_analysis,
-            gpt_analysis=gpt_analysis,
+            ollama_analysis=ollama_analysis,
             comparison=comparison,
             risk_assessment=risk_assessment,
             decision=automatic_decision,
         )
 
         assert result.gemini_analysis.provider == Provider.GEMINI
-        assert result.gpt_analysis.provider == Provider.GPT
+        assert result.ollama_analysis.provider == Provider.OLLAMA
         assert result.human_review is None
 
     def test_automatic_cannot_have_review(
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
         risk_assessment,
         automatic_decision,
@@ -896,7 +896,7 @@ class TestArxiaResult:
             ArxiaResult(
                 race_event=race_event,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
                 comparison=comparison,
                 risk_assessment=risk_assessment,
                 decision=automatic_decision,
@@ -909,7 +909,7 @@ class TestArxiaResult:
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
     ):
         """Verifica que una decisión de revisión requiere HumanReview."""
@@ -937,7 +937,7 @@ class TestArxiaResult:
             reason=DecisionReason.MODEL_DISAGREEMENT,
             supporting_models=[
                 Provider.GEMINI,
-                Provider.GPT,
+                Provider.OLLAMA,
             ],
             rationale="Human review is required.",
         )
@@ -949,7 +949,7 @@ class TestArxiaResult:
             ArxiaResult(
                 race_event=race_event,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
                 comparison=comparison,
                 risk_assessment=risk,
                 decision=decision,
@@ -959,7 +959,7 @@ class TestArxiaResult:
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
     ):
         """Verifica que un resultado con revisión humana es válido."""
@@ -993,7 +993,7 @@ class TestArxiaResult:
             reason=DecisionReason.MODEL_DISAGREEMENT,
             supporting_models=[
                 Provider.GEMINI,
-                Provider.GPT,
+                Provider.OLLAMA,
             ],
             rationale="Models disagree and human review is required.",
         )
@@ -1001,7 +1001,7 @@ class TestArxiaResult:
         result = ArxiaResult(
             race_event=race_event,
             gemini_analysis=gemini_analysis,
-            gpt_analysis=gpt_analysis,
+            ollama_analysis=ollama_analysis,
             comparison=comparison,
             risk_assessment=risk,
             decision=decision,
@@ -1017,7 +1017,7 @@ class TestArxiaResult:
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
         risk_assessment,
         automatic_decision,
@@ -1030,32 +1030,32 @@ class TestArxiaResult:
             ArxiaResult(
                 race_event=race_event,
                 gemini_analysis=gemini_analysis.model_copy(
-                    update={"provider": Provider.GPT}
+                    update={"provider": Provider.OLLAMA}
                 ),
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
                 comparison=comparison,
                 risk_assessment=risk_assessment,
                 decision=automatic_decision,
             )
 
-    def test_gpt_must_use_gpt_provider(
+    def test_ollama_must_use_ollama_provider(
         self,
         race_event,
         gemini_analysis,
-        gpt_analysis,
+        ollama_analysis,
         comparison,
         risk_assessment,
         automatic_decision,
     ):
-        """Verifica que gpt_analysis usa el provider GPT."""
+        """Verifica que ollama_analysis usa el provider OLLAMA."""
         with pytest.raises(
             ValidationError,
-            match="gpt_analysis must use GPT provider",
+            match="ollama_analysis must use OLLAMA provider",
         ):
             ArxiaResult(
                 race_event=race_event,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis.model_copy(
+                ollama_analysis=ollama_analysis.model_copy(
                     update={"provider": Provider.GEMINI}
                 ),
                 comparison=comparison,

@@ -294,13 +294,13 @@ class AIAnalysis(BaseModel):
 # FIELD COMPARISON
 # ============================================================================
 class FieldComparison(BaseModel):
-    """Comparación de un campo entre Gemini y GPT."""
+    """Comparación de un campo entre Gemini y Ollama."""
 
     field: ComparisonField
 
     gemini_value: str | float | int | None
 
-    gpt_value: str | float | int | None
+    ollama_value: str | float | int | None
 
     agreement: AgreementLevel
 
@@ -311,7 +311,7 @@ class FieldComparison(BaseModel):
 
 
 class Comparison(BaseModel):
-    """Comparación estructurada entre Gemini y GPT."""
+    """Comparación estructurada entre Gemini y Ollama."""
 
     status: ComparisonStatus
 
@@ -602,7 +602,7 @@ class ArxiaResult(BaseModel):
 
     gemini_analysis: AIAnalysis
 
-    gpt_analysis: AIAnalysis
+    ollama_analysis: AIAnalysis
 
     comparison: Comparison
 
@@ -623,9 +623,9 @@ class ArxiaResult(BaseModel):
                 "gemini_analysis must use GEMINI provider"
             )
 
-        if self.gpt_analysis.provider != Provider.GPT:
+        if self.ollama_analysis.provider != Provider.OLLAMA:
             raise ValueError(
-                "gpt_analysis must use GPT provider"
+                "ollama_analysis must use OLLAMA provider"
             )
 
         if (

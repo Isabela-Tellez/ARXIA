@@ -8,7 +8,7 @@ from domain.schemas import RaceEvent
 
 from infrastructure.mocks import (
     MockGeminiProvider,
-    MockGPTProvider,
+    MockOllamaProvider,
 )
 
 
@@ -36,13 +36,13 @@ def test_mock_gemini_returns_valid_analysis():
     assert result.error is None
 
 
-def test_mock_gpt_returns_valid_analysis():
-    provider = MockGPTProvider()
+def test_mock_ollama_returns_valid_analysis():
+    provider = MockOllamaProvider()
 
     result = provider.analyze(build_race_event())
 
-    assert result.provider == Provider.GPT
-    assert result.model == "mock-gpt"
+    assert result.provider == Provider.OLLAMA
+    assert result.model == "mock-ollama"
     assert result.status == AnalysisStatus.SUCCESS
     assert result.error is None
 
@@ -51,7 +51,7 @@ def test_mock_providers_return_strategic_recommendations():
     race_event = build_race_event()
 
     gemini_result = MockGeminiProvider().analyze(race_event)
-    gpt_result = MockGPTProvider().analyze(race_event)
+    ollama_result = MockOllamaProvider().analyze(race_event)
 
     assert (
         gemini_result.recommendation.action
@@ -59,7 +59,7 @@ def test_mock_providers_return_strategic_recommendations():
     )
 
     assert (
-        gpt_result.recommendation.action
+        ollama_result.recommendation.action
         == RecommendationAction.PIT_STOP
     )
 
@@ -69,7 +69,7 @@ def test_mock_providers_return_strategic_recommendations():
     )
 
     assert (
-        gpt_result.recommendation.tyre_compound
+        ollama_result.recommendation.tyre_compound
         == TyreCompound.MEDIUM
     )
 
@@ -78,32 +78,32 @@ def test_mock_providers_agree_on_target_lap():
     race_event = build_race_event()
 
     gemini_result = MockGeminiProvider().analyze(race_event)
-    gpt_result = MockGPTProvider().analyze(race_event)
+    ollama_result = MockOllamaProvider().analyze(race_event)
 
     assert gemini_result.recommendation.target_lap == 20
-    assert gpt_result.recommendation.target_lap == 20
+    assert ollama_result.recommendation.target_lap == 20
 
 
 def test_mock_providers_have_sufficient_confidence():
     race_event = build_race_event()
 
     gemini_result = MockGeminiProvider().analyze(race_event)
-    gpt_result = MockGPTProvider().analyze(race_event)
+    ollama_result = MockOllamaProvider().analyze(race_event)
 
     assert gemini_result.confidence >= 0.80
-    assert gpt_result.confidence >= 0.80
+    assert ollama_result.confidence >= 0.80
 
     assert gemini_result.recommendation.confidence >= 0.80
-    assert gpt_result.recommendation.confidence >= 0.80
+    assert ollama_result.recommendation.confidence >= 0.80
 
 
 def test_mock_provider_metrics_are_consistent():
     race_event = build_race_event()
 
     gemini_result = MockGeminiProvider().analyze(race_event)
-    gpt_result = MockGPTProvider().analyze(race_event)
+    ollama_result = MockOllamaProvider().analyze(race_event)
 
-    for result in (gemini_result, gpt_result):
+    for result in (gemini_result, ollama_result):
         assert (
             result.metrics.total_tokens
             == result.metrics.input_tokens

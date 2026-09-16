@@ -78,7 +78,7 @@ class Provider(str, Enum):
     """Proveedor de IA utilizado para realizar el análisis."""
 
     GEMINI = "gemini"
-    GPT = "gpt"
+    OLLAMA = "ollama"
 
 
 class AnalysisStatus(str, Enum):

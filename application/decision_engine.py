@@ -1,7 +1,7 @@
 """
 Motor de decisión de ARXIA.
 
-Transforma los análisis de Gemini y GPT, junto con su comparación
+Transforma los análisis de Gemini y Ollama, junto con su comparación
 y evaluación de riesgo, en una decisión automática o una solicitud
 de revisión humana.
 
@@ -52,7 +52,7 @@ class DecisionEngine:
     def decide(
         self,
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
         comparison: Comparison,
         risk_assessment: RiskAssessment,
     ) -> ArxiaDecision:
@@ -76,13 +76,13 @@ class DecisionEngine:
 
         if not self._both_models_succeeded(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         ):
             return self._human_review_decision(
                 risk_level=RiskLevel.HIGH,
                 reason=DecisionReason.PROVIDER_FAILURE,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -94,7 +94,7 @@ class DecisionEngine:
                 risk_level=RiskLevel.CRITICAL,
                 reason=DecisionReason.CRITICAL_RISK,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -106,7 +106,7 @@ class DecisionEngine:
                 risk_level=RiskLevel.HIGH,
                 reason=DecisionReason.HIGH_RISK,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -120,7 +120,7 @@ class DecisionEngine:
                 ),
                 reason=DecisionReason.MODEL_DISAGREEMENT,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -129,13 +129,13 @@ class DecisionEngine:
 
         if not self._confidence_is_sufficient(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         ):
             return self._human_review_decision(
                 risk_level=RiskLevel.MEDIUM,
                 reason=DecisionReason.LOW_CONFIDENCE,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -147,7 +147,7 @@ class DecisionEngine:
                 risk_level=RiskLevel.MEDIUM,
                 reason=DecisionReason.INSUFFICIENT_INFORMATION,
                 gemini_analysis=gemini_analysis,
-                gpt_analysis=gpt_analysis,
+                ollama_analysis=ollama_analysis,
             )
 
         # ------------------------------------------------------------------
@@ -156,7 +156,7 @@ class DecisionEngine:
 
         return self._automatic_decision(
             gemini_analysis=gemini_analysis,
-            gpt_analysis=gpt_analysis,
+            ollama_analysis=ollama_analysis,
         )
 
     # ======================================================================
@@ -166,15 +166,15 @@ class DecisionEngine:
     @staticmethod
     def _both_models_succeeded(
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> bool:
         """Comprueba que ambos proveedores terminaron correctamente."""
 
         return (
             gemini_analysis.provider == Provider.GEMINI
-            and gpt_analysis.provider == Provider.GPT
+            and ollama_analysis.provider == Provider.OLLAMA
             and gemini_analysis.status == AnalysisStatus.SUCCESS
-            and gpt_analysis.status == AnalysisStatus.SUCCESS
+            and ollama_analysis.status == AnalysisStatus.SUCCESS
         )
 
     @staticmethod
@@ -197,16 +197,16 @@ class DecisionEngine:
     def _confidence_is_sufficient(
         self,
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> bool:
         """Comprueba la confianza mínima de ambos modelos."""
 
         return (
             gemini_analysis.confidence >= self.confidence_threshold
-            and gpt_analysis.confidence >= self.confidence_threshold
+            and ollama_analysis.confidence >= self.confidence_threshold
             and gemini_analysis.recommendation.confidence
             >= self.confidence_threshold
-            and gpt_analysis.recommendation.confidence
+            and ollama_analysis.recommendation.confidence
             >= self.confidence_threshold
         )
 
@@ -232,20 +232,20 @@ class DecisionEngine:
     @staticmethod
     def _select_action(
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> RecommendationAction:
         """
         Selecciona la acción estratégica.
 
         En una situación de acuerdo, ambos modelos deberían proponer
-        la misma acción. Gemini actúa como primera referencia y GPT
+        la misma acción. Gemini actúa como primera referencia y Ollama
         como segunda validación.
         """
 
         gemini_action = gemini_analysis.recommendation.action
-        gpt_action = gpt_analysis.recommendation.action
+        ollama_action = ollama_analysis.recommendation.action
 
-        if gemini_action == gpt_action:
+        if gemini_action == ollama_action:
             return gemini_action
 
         # Esta situación no debería llegar a una decisión automática,
@@ -256,28 +256,28 @@ class DecisionEngine:
     @staticmethod
     def _select_target_lap(
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> int | None:
         """Selecciona la vuelta objetivo cuando ambos modelos coinciden."""
 
         gemini_lap = gemini_analysis.recommendation.target_lap
-        gpt_lap = gpt_analysis.recommendation.target_lap
+        ollama_lap = ollama_analysis.recommendation.target_lap
 
-        if gemini_lap == gpt_lap:
+        if gemini_lap == ollama_lap:
             return gemini_lap
 
         if gemini_lap is None:
-            return gpt_lap
+            return ollama_lap
 
-        if gpt_lap is None:
+        if ollama_lap is None:
             return gemini_lap
 
-        return round((gemini_lap + gpt_lap) / 2)
+        return round((gemini_lap + ollama_lap) / 2)
 
     @staticmethod
     def _select_tyre_compound(
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ):
         """Selecciona el compuesto cuando existe acuerdo."""
 
@@ -285,17 +285,17 @@ class DecisionEngine:
             gemini_analysis.recommendation.tyre_compound
         )
 
-        gpt_compound = (
-            gpt_analysis.recommendation.tyre_compound
+        ollama_compound = (
+            ollama_analysis.recommendation.tyre_compound
         )
 
-        if gemini_compound == gpt_compound:
+        if gemini_compound == ollama_compound:
             return gemini_compound
 
         if gemini_compound is None:
-            return gpt_compound
+            return ollama_compound
 
-        if gpt_compound is None:
+        if ollama_compound is None:
             return gemini_compound
 
         return None
@@ -303,7 +303,7 @@ class DecisionEngine:
     @staticmethod
     def _combined_confidence(
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> float:
         """
         Calcula una confianza conservadora.
@@ -314,36 +314,36 @@ class DecisionEngine:
 
         return min(
             gemini_analysis.confidence,
-            gpt_analysis.confidence,
+            ollama_analysis.confidence,
             gemini_analysis.recommendation.confidence,
-            gpt_analysis.recommendation.confidence,
+            ollama_analysis.recommendation.confidence,
         )
 
     def _automatic_decision(
         self,
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> ArxiaDecision:
         """Construye una decisión automática."""
 
         action = self._select_action(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         target_lap = self._select_target_lap(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         tyre_compound = self._select_tyre_compound(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         confidence = self._combined_confidence(
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         return ArxiaDecision(
@@ -356,10 +356,10 @@ class DecisionEngine:
             reason=DecisionReason.MODELS_AGREE,
             supporting_models=[
                 Provider.GEMINI,
-                Provider.GPT,
+                Provider.OLLAMA,
             ],
             rationale=(
-                "Gemini and GPT agree on the strategic recommendation "
+                "Gemini and Ollama agree on the strategic recommendation "
                 "with sufficient confidence and low automation risk."
             ),
         )
@@ -369,7 +369,7 @@ class DecisionEngine:
         risk_level: RiskLevel,
         reason: DecisionReason,
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> ArxiaDecision:
         """
         Construye una decisión que requiere intervención humana.
@@ -387,14 +387,14 @@ class DecisionEngine:
             tyre_compound=recommendation.tyre_compound,
             confidence=min(
                 gemini_analysis.confidence,
-                gpt_analysis.confidence,
+                ollama_analysis.confidence,
             ),
             decision=DecisionType.HUMAN_REVIEW,
             risk_level=risk_level,
             reason=reason,
             supporting_models=[
                 Provider.GEMINI,
-                Provider.GPT,
+                Provider.OLLAMA,
             ],
             rationale=(
                 "ARXIA requires human review because the current "

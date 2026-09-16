@@ -43,7 +43,7 @@ class RiskEngine:
         self,
         race_event: RaceEvent,
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
         comparison: Comparison,
     ) -> RiskAssessment:
         """
@@ -58,7 +58,7 @@ class RiskEngine:
         self._add_provider_failure_factor(
             factors,
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         self._add_model_disagreement_factor(
@@ -69,13 +69,13 @@ class RiskEngine:
         self._add_low_confidence_factor(
             factors,
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         self._add_confidence_gap_factor(
             factors,
             gemini_analysis,
-            gpt_analysis,
+            ollama_analysis,
         )
 
         self._add_timing_disagreement_factor(
@@ -123,7 +123,7 @@ class RiskEngine:
     def _add_provider_failure_factor(
         factors: list[RiskFactor],
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> None:
         """Añade riesgo cuando uno o ambos proveedores fallan."""
 
@@ -132,8 +132,8 @@ class RiskEngine:
         if gemini_analysis.status != AnalysisStatus.SUCCESS:
             failed_providers.append("Gemini")
 
-        if gpt_analysis.status != AnalysisStatus.SUCCESS:
-            failed_providers.append("GPT")
+        if ollama_analysis.status != AnalysisStatus.SUCCESS:
+            failed_providers.append("Ollama")
 
         if not failed_providers:
             return
@@ -179,7 +179,7 @@ class RiskEngine:
         self,
         factors: list[RiskFactor],
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> None:
         """Añade riesgo cuando la confianza de algún modelo es baja."""
 
@@ -188,8 +188,8 @@ class RiskEngine:
         if gemini_analysis.confidence < self.confidence_threshold:
             low_confidence_providers.append("Gemini")
 
-        if gpt_analysis.confidence < self.confidence_threshold:
-            low_confidence_providers.append("GPT")
+        if ollama_analysis.confidence < self.confidence_threshold:
+            low_confidence_providers.append("Ollama")
 
         if not low_confidence_providers:
             return
@@ -211,7 +211,7 @@ class RiskEngine:
         self,
         factors: list[RiskFactor],
         gemini_analysis: AIAnalysis,
-        gpt_analysis: AIAnalysis,
+        ollama_analysis: AIAnalysis,
     ) -> None:
         """
         Añade riesgo cuando existe una diferencia significativa
@@ -224,7 +224,7 @@ class RiskEngine:
 
         confidence_gap = abs(
             gemini_analysis.confidence
-            - gpt_analysis.confidence
+            - ollama_analysis.confidence
         )
 
         if (

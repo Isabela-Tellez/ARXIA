@@ -99,7 +99,7 @@ def build_comparison(
             {
                 "field": "category",
                 "gemini_value": "race_strategy",
-                "gpt_value": "race_strategy",
+                "ollama_value": "race_strategy",
                 "agreement": "agree",
             }
         ],
@@ -140,8 +140,8 @@ def test_agreement_high_confidence_produces_low_risk():
             provider=Provider.GEMINI,
             confidence=0.95,
         ),
-        gpt_analysis=build_analysis(
-            provider=Provider.GPT,
+        ollama_analysis=build_analysis(
+            provider=Provider.OLLAMA,
             confidence=0.90,
         ),
         comparison=build_comparison(),
@@ -165,8 +165,8 @@ def test_provider_failure_adds_high_risk():
             provider=Provider.GEMINI,
             status=AnalysisStatus.ERROR,
         ),
-        gpt_analysis=build_analysis(
-            provider=Provider.GPT,
+        ollama_analysis=build_analysis(
+            provider=Provider.OLLAMA,
         ),
         comparison=build_comparison(),
     )
@@ -187,7 +187,7 @@ def test_model_disagreement_adds_risk():
     result = engine.assess(
         race_event=build_event(),
         gemini_analysis=build_analysis(provider=Provider.GEMINI),
-        gpt_analysis=build_analysis(provider=Provider.GPT),
+        ollama_analysis=build_analysis(provider=Provider.OLLAMA),
         comparison=build_comparison(
             agreement=AgreementLevel.DISAGREE,
         ),
@@ -215,8 +215,8 @@ def test_low_confidence_adds_risk():
             provider=Provider.GEMINI,
             confidence=0.70,
         ),
-        gpt_analysis=build_analysis(
-            provider=Provider.GPT,
+        ollama_analysis=build_analysis(
+            provider=Provider.OLLAMA,
             confidence=0.90,
         ),
         comparison=build_comparison(),
@@ -244,8 +244,8 @@ def test_large_confidence_gap_adds_risk():
             provider=Provider.GEMINI,
             confidence=0.99,
         ),
-        gpt_analysis=build_analysis(
-            provider=Provider.GPT,
+        ollama_analysis=build_analysis(
+            provider=Provider.OLLAMA,
             confidence=0.70,
         ),
         comparison=build_comparison(),
@@ -274,7 +274,7 @@ def test_target_lap_disagreement_adds_risk():
     result = engine.assess(
         race_event=build_event(),
         gemini_analysis=build_analysis(provider=Provider.GEMINI),
-        gpt_analysis=build_analysis(provider=Provider.GPT),
+        ollama_analysis=build_analysis(provider=Provider.OLLAMA),
         comparison=build_comparison(
             target_lap_difference=3,
         ),
@@ -308,7 +308,7 @@ def test_critical_event_adds_risk(event_type):
     result = engine.assess(
         race_event=build_event(event_type=event_type),
         gemini_analysis=build_analysis(provider=Provider.GEMINI),
-        gpt_analysis=build_analysis(provider=Provider.GPT),
+        ollama_analysis=build_analysis(provider=Provider.OLLAMA),
         comparison=build_comparison(),
     )
 
@@ -331,7 +331,7 @@ def test_insufficient_comparison_adds_risk():
     result = engine.assess(
         race_event=build_event(),
         gemini_analysis=build_analysis(provider=Provider.GEMINI),
-        gpt_analysis=build_analysis(provider=Provider.GPT),
+        ollama_analysis=build_analysis(provider=Provider.OLLAMA),
         comparison=build_comparison(
             status=ComparisonStatus.INSUFFICIENT_DATA,
             agreement=None,

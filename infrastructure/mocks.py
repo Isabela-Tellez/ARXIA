@@ -1,7 +1,7 @@
 """
 Mock Providers utilizados durante el desarrollo de ARXIA.
 
-Simulan las respuestas de Gemini y GPT sin depender todavía
+Simulan las respuestas de Gemini y Ollama sin depender todavía
 de APIs externas.
 """
 
@@ -108,18 +108,18 @@ class MockGeminiProvider:
 
 
 # ============================================================================
-# GPT MOCK
+# OLLAMA MOCK
 # ============================================================================
 
 
-class MockGPTProvider:
-    """Simula el proveedor GPT de ARXIA."""
+class MockOllamaProvider:
+    """Simula el proveedor Ollama de ARXIA."""
 
     def analyze(self, race_event: RaceEvent) -> AIAnalysis:
         """Devuelve un análisis estratégico simulado."""
 
         return _build_analysis(
-            provider=Provider.GPT,
-            model="mock-gpt",
+            provider=Provider.OLLAMA,
+            model="mock-ollama",
             confidence=0.92,
         )
