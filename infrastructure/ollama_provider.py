@@ -13,7 +13,7 @@ import time
 import requests
 from pydantic import BaseModel, ValidationError
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisCategory,
     AnalysisStatus,
     AnalysisUrgency,
@@ -21,7 +21,7 @@ from domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import AIAnalysis, ModelMetrics, RaceEvent, Recommendation
+from core.domain.schemas import AIAnalysis, ModelMetrics, RaceEvent, Recommendation
 
 
 # ============================================================================

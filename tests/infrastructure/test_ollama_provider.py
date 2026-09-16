@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 import requests
 
-from domain.enums import (
+from core.domain.enums import (
     AnalysisCategory,
     AnalysisStatus,
     AnalysisUrgency,
@@ -12,7 +12,7 @@ from domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from domain.schemas import RaceEvent
+from core.domain.schemas import RaceEvent
 from infrastructure.ollama_provider import (
     OllamaAnalysisResponse,
     OllamaProvider,
