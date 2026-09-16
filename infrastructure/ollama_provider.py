@@ -1,13 +1,17 @@
 """
-Proveedor de modelos basado en Ollama.
-Permite a ARXIA utilizar un modelo local mediante Ollama sin
-acoplar el dominio ni los motores de decisión a la implementación
-concreta del proveedor.
+Proveedor real basado en Ollama para ARXIA.
+
+Se encarga exclusivamente de comunicarse con Ollama y transformar
+su respuesta estructurada en un AIAnalysis válido del dominio.
+
+No contiene lógica de comparación, evaluación de riesgo ni decisión.
 """
 
 import json
 import time
+
 import requests
+from pydantic import BaseModel, ValidationError
 
 from domain.enums import (
     AnalysisCategory,
@@ -15,150 +19,198 @@ from domain.enums import (
     AnalysisUrgency,
     Provider,
     RecommendationAction,
+    TyreCompound,
 )
-from domain.schemas import (
-    AIAnalysis,
-    ModelMetrics,
-    RaceEvent,
-    Recommendation,
-)
+from domain.schemas import AIAnalysis, ModelMetrics, RaceEvent, Recommendation
+
+
+# ============================================================================
+# OLLAMA RESPONSE SCHEMA
+# ============================================================================
+
+
+class OllamaRecommendation(BaseModel):
+    """Respuesta estratégica generada por Ollama."""
+
+    action: RecommendationAction
+    target_lap: int | None = None
+    tyre_compound: TyreCompound | None = None
+    confidence: float
+    rationale: str
+    alternative_action: RecommendationAction | None = None
+
+
+class OllamaAnalysisResponse(BaseModel):
+    """Payload estructurado que esperamos recibir de Ollama."""
+
+    category: AnalysisCategory
+    urgency: AnalysisUrgency
+    confidence: float
+    summary: str
+    reasoning: str
+    recommendation: OllamaRecommendation
+
+
+# ============================================================================
+# PROVIDER
+# ============================================================================
 
 
 class OllamaProvider:
-    """Proveedor de modelos locales mediante la API de Ollama."""
+    """Proveedor de IA local basado en Ollama."""
+
+    DEFAULT_MODEL = "llama3.2:1b"
+    DEFAULT_BASE_URL = "http://localhost:11434"
+    DEFAULT_TIMEOUT = 60.0
+    DEFAULT_NUM_PREDICT = 256
 
     def __init__(
         self,
-        model: str = "llama3.2:3b",
-        base_url: str = "http://localhost:11434",
-        timeout: float = 60.0,
+        model: str = DEFAULT_MODEL,
+        base_url: str = DEFAULT_BASE_URL,
+        timeout: float = DEFAULT_TIMEOUT,
+        num_predict: int = DEFAULT_NUM_PREDICT,
     ):
-        """
-        Inicializa el proveedor de Ollama.
+        """Inicializa el proveedor Ollama."""
 
-        Args:
-            model:
-                Nombre del modelo local utilizado por Ollama.
+        if not model.strip():
+            raise ValueError("Ollama model cannot be empty")
 
-            base_url:
-                URL base de la API HTTP de Ollama.
+        if not base_url.strip():
+            raise ValueError("Ollama base URL cannot be empty")
 
-            timeout:
-                Tiempo máximo de espera de la petición HTTP,
-                expresado en segundos.
-        """
-        self.model = model
+        if timeout <= 0:
+            raise ValueError("Ollama timeout must be greater than zero")
+
+        if num_predict <= 0:
+            raise ValueError("Ollama num_predict must be greater than zero")
+
+        self.model = model.strip()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.num_predict = num_predict
 
-    # ======================================================================
+    # =========================================================================
     # PUBLIC API
-    # ======================================================================
+    # =========================================================================
 
     def analyze(self, race_event: RaceEvent) -> AIAnalysis:
         """
         Analiza un evento de carrera utilizando Ollama.
 
-        El flujo es:
-
-            RaceEvent
-                ↓
-            Prompt
-                ↓
-            Ollama API
-                ↓
-            JSON
-                ↓
-            AIAnalysis
-
-        Si Ollama devuelve un error, una respuesta vacía o una
-        respuesta JSON inválida, se devuelve igualmente un
-        AIAnalysis con status ERROR.
+        Ollama produce únicamente el análisis estratégico.
+        El provider convierte la respuesta externa en AIAnalysis.
         """
-        start_time = time.perf_counter()
 
-        # Construimos el prompt a partir del mismo RaceEvent
-        # recibido por cualquier otro provider.
-        prompt = self._build_prompt(race_event)
+        started_at = time.perf_counter()
 
         try:
-            # Realizamos la petición a la API de Ollama.
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json={
                     "model": self.model,
-                    "prompt": prompt,
+                    "prompt": self._build_prompt(race_event),
                     "stream": False,
                     "format": "json",
+                    "options": {
+                        "temperature": 0,
+                        "num_predict": self.num_predict,
+                    },
                 },
                 timeout=self.timeout,
             )
-
-            # Si Ollama devuelve un código HTTP de error,
-            # requests lanzará una excepción.
             response.raise_for_status()
 
-            # Convertimos la respuesta HTTP a un diccionario.
-            data = response.json()
+            parsed = self._parse_response(response)
 
-            # Ollama devuelve el contenido generado dentro
-            # de la propiedad "response".
-            raw_response = data.get("response", "")
+            return AIAnalysis(
+                provider=Provider.OLLAMA,
+                model=self.model,
+                status=AnalysisStatus.SUCCESS,
+                category=parsed.category,
+                urgency=parsed.urgency,
+                confidence=parsed.confidence,
+                summary=parsed.summary,
+                reasoning=parsed.reasoning,
+                recommendation=Recommendation.model_validate(
+                    parsed.recommendation.model_dump()
+                ),
+                metrics=self._build_metrics(
+                    response,
+                    (time.perf_counter() - started_at) * 1000,
+                ),
+                error=None,
+            )
 
-            # Una respuesta vacía no puede convertirse en análisis.
-            if not raw_response.strip():
-                return self._build_error_analysis(
-                    error="Ollama returned an empty response",
-                    start_time=start_time,
-                )
+        except requests.Timeout:
+            return self._build_error_analysis(
+                AnalysisStatus.TIMEOUT,
+                "Ollama request timed out.",
+                (time.perf_counter() - started_at) * 1000,
+            )
 
-            # El modelo debe devolver exclusivamente JSON.
-            parsed_result = json.loads(raw_response)
-
-            # Convertimos el JSON recibido en el objeto de dominio
-            # AIAnalysis.
-            return self._build_analysis(
-                parsed_result=parsed_result,
-                data=data,
-                start_time=start_time,
+        except (ValidationError, ValueError, KeyError, TypeError) as exc:
+            return self._build_error_analysis(
+                AnalysisStatus.INVALID,
+                f"Invalid Ollama response: {exc}",
+                (time.perf_counter() - started_at) * 1000,
             )
 
         except requests.RequestException as exc:
-            # Error de conexión, timeout o error HTTP.
             return self._build_error_analysis(
-                error=str(exc),
-                start_time=start_time,
+                AnalysisStatus.ERROR,
+                f"Ollama request failed: {exc}",
+                (time.perf_counter() - started_at) * 1000,
             )
 
-        except (ValueError, KeyError, TypeError) as exc:
-            # Error al interpretar la respuesta del modelo.
+        except Exception as exc:
             return self._build_error_analysis(
-                error=f"Invalid Ollama response: {exc}",
-                start_time=start_time,
+                AnalysisStatus.ERROR,
+                f"Ollama request failed: {exc}",
+                (time.perf_counter() - started_at) * 1000,
             )
 
-    # ======================================================================
+    # =========================================================================
     # PROMPT
-    # ======================================================================
+    # =========================================================================
 
-    def _build_prompt(
-        self,
-        race_event: RaceEvent,
-    ) -> str:
-        """
-        Construye el prompt estructurado enviado a Ollama.
+    @staticmethod
+    def _build_prompt(race_event: RaceEvent) -> str:
+        """Construye el prompt enviado a Ollama."""
 
-        El objetivo es pedir al modelo exactamente la estructura
-        que ARXIA necesita para construir AIAnalysis.
-        """
         weather = race_event.weather
-        weather_context = "unknown"
+        weather_context = (
+            "unknown"
+            if weather is None
+            else (
+                f"condition={weather.condition.value}, "
+                f"temperature_c={weather.temperature_c}, "
+                f"track_temperature_c={weather.track_temperature_c}, "
+                f"rain_probability={weather.rain_probability}, "
+                f"wind_speed_kmh={weather.wind_speed_kmh}"
+            )
+        )
 
-        if weather is not None:
-            weather_context = weather.condition.value
+        tyre_compound = (
+            race_event.tyre_compound.value
+            if race_event.tyre_compound is not None
+            else "unknown"
+        )
+
+        track_condition = (
+            race_event.track_condition.value
+            if race_event.track_condition is not None
+            else "unknown"
+        )
 
         return f"""
-Analyze the following motorsport race event.
+You are ARXIA, an AI motorsport race strategy analyst.
+
+Analyze the following race event and provide a structured
+strategic assessment.
+
+Race event:
+
 Circuit: {race_event.circuit}
 Session: {race_event.session.value}
 Lap: {race_event.lap}
@@ -166,208 +218,136 @@ Driver: {race_event.driver}
 Team: {race_event.team}
 Position: {race_event.position}
 Event type: {race_event.event_type.value}
-Current tyre compound: {
-    race_event.tyre_compound.value
-    if race_event.tyre_compound
-    else "unknown"
-}
-Track condition: {
-    race_event.track_condition.value
-    if race_event.track_condition
-    else "unknown"
-}
+Current tyre compound: {tyre_compound}
+Track condition: {track_condition}
 Weather: {weather_context}
-Race context:
-{race_event.race_context or "unknown"}
-Event description:
-{race_event.description}
+Race context: {race_event.race_context or "none"}
+Description: {race_event.description}
 
-Return ONLY valid JSON with exactly this structure:
-{{
-  "category": "race_strategy",
-  "urgency": "medium",
-  "confidence": 0.90,
-  "summary": "Brief summary of the analysis.",
-  "reasoning": "Brief explanation of the reasoning.",
-  "recommendation": {{
-    "action": "pit_stop",
-    "target_lap": 20,
-    "tyre_compound": "medium",
-    "confidence": 0.90,
-    "rationale": "Brief strategic rationale.",
-    "alternative_action": null
-  }}
-}}
+Instructions:
 
-Allowed category values:
-tyre_strategy,
-race_strategy,
-weather,
-mechanical,
-safety,
-position,
-other
+Analyze only the information provided.
 
-Allowed urgency values:
-low,
-medium,
-high,
-critical
+Do not invent telemetry, lap times, tyre degradation values,
+weather measurements, or race events.
 
-Allowed action values:
-pit_stop,
-stay_out,
-push,
-manage_tyres,
-defend,
-attack,
-no_action
+Identify the most appropriate strategic response.
 
-Allowed tyre_compound values:
-soft,
-medium,
-hard,
-intermediate,
-wet
+Give a confidence value between 0 and 1.
+Give recommendation confidence between 0 and 1.
 
-Confidence values must be between 0.0 and 1.0.
-target_lap must be an integer greater than or equal to 1,
-or null.
-tyre_compound may be null.
-alternative_action may be null.
+Use only the allowed enum values for category, urgency, action,
+tyre compound, and alternative action.
 
-Do not include markdown or any text outside the JSON.
+Set target_lap to null when a target lap cannot be reasonably determined.
+Set tyre_compound to null when a tyre change is not applicable.
+
+Keep the summary concise.
+Explain the reasoning behind the recommendation.
+
+Return ONLY valid JSON.
 """.strip()
 
-    # ======================================================================
-    # RESPONSE → DOMAIN
-    # ======================================================================
+    # =========================================================================
+    # RESPONSE PARSING
+    # =========================================================================
 
-    def _build_analysis(
-        self,
-        *,
-        parsed_result: dict,
-        data: dict,
-        start_time: float,
-    ) -> AIAnalysis:
+    @staticmethod
+    def _parse_response(response) -> OllamaAnalysisResponse:
         """
-        Convierte la respuesta JSON de Ollama en AIAnalysis.
+        Convierte la respuesta HTTP de Ollama en un DTO estructurado.
 
-        Aquí se produce la transformación entre la respuesta
-        externa del provider y el modelo de dominio de ARXIA.
+        Ollama devuelve el contenido generado dentro del campo
+        "response". Ese contenido debe ser JSON válido.
         """
-        recommendation_data = parsed_result["recommendation"]
 
-        recommendation = Recommendation(
-            action=recommendation_data["action"],
-            target_lap=recommendation_data.get("target_lap"),
-            tyre_compound=recommendation_data.get("tyre_compound"),
-            confidence=recommendation_data["confidence"],
-            rationale=recommendation_data["rationale"],
-            alternative_action=recommendation_data.get(
-                "alternative_action"
-            ),
-        )
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ValueError("Ollama returned invalid HTTP JSON") from exc
 
-        # Ollama proporciona el número de tokens utilizados
-        # mediante estas dos propiedades.
-        input_tokens = data.get(
-            "prompt_eval_count",
-            0,
-        )
+        raw_response = data.get("response", "")
 
-        output_tokens = data.get(
-            "eval_count",
-            0,
-        )
+        if not isinstance(raw_response, str):
+            raise ValueError("Ollama response field must be a string")
 
-        total_tokens = input_tokens + output_tokens
+        if not raw_response.strip():
+            raise ValueError("Ollama returned an empty response")
 
-        # Medimos la latencia completa de la operación.
-        latency_ms = (
-            time.perf_counter() - start_time
-        ) * 1000
+        try:
+            parsed_json = json.loads(raw_response)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Ollama returned invalid JSON: {exc}") from exc
 
-        metrics = ModelMetrics(
+        return OllamaAnalysisResponse.model_validate(parsed_json)
+
+    # =========================================================================
+    # METRICS
+    # =========================================================================
+
+    @staticmethod
+    def _build_metrics(response, latency_ms: float) -> ModelMetrics:
+        """Construye las métricas de la ejecución de Ollama."""
+
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+
+        input_tokens = int(data.get("prompt_eval_count", 0) or 0)
+        output_tokens = int(data.get("eval_count", 0) or 0)
+
+        return ModelMetrics(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            total_tokens=total_tokens,
+            total_tokens=input_tokens + output_tokens,
             latency_ms=latency_ms,
             cost=0.0,
             retries=0,
         )
 
-        return AIAnalysis(
-            # TEMPORAL:
-            # Provider todavía no dispone de OLLAMA.
-            provider=Provider.OLLAMA,
-            model=self.model,
-            status=AnalysisStatus.SUCCESS,
-            category=parsed_result["category"],
-            urgency=parsed_result["urgency"],
-            confidence=parsed_result["confidence"],
-            summary=parsed_result["summary"],
-            reasoning=parsed_result["reasoning"],
-            recommendation=recommendation,
-            metrics=metrics,
-            error=None,
-        )
-
-    # ======================================================================
-    # ERROR HANDLING
-    # ======================================================================
+    # =========================================================================
+    # ERRORS
+    # =========================================================================
 
     def _build_error_analysis(
         self,
-        *,
+        status: AnalysisStatus,
         error: str,
-        start_time: float,
+        latency_ms: float,
     ) -> AIAnalysis:
         """
-        Construye un AIAnalysis de error.
+        Construye un AIAnalysis para una ejecución fallida.
 
-        ARXIA no debe romper el pipeline simplemente porque un
-        provider externo falle.
-
-        En su lugar, devuelve un análisis explícitamente marcado
-        como ERROR para que posteriormente el RiskEngine y el
-        DecisionEngine puedan reaccionar de forma determinista.
+        Los errores permanecen dentro del contrato de AIAnalysis
+        para que RiskEngine y DecisionEngine puedan reaccionar
+        de forma determinista.
         """
-        latency_ms = (
-            time.perf_counter() - start_time
-        ) * 1000
-
-        metrics = ModelMetrics(
-            input_tokens=0,
-            output_tokens=0,
-            total_tokens=0,
-            latency_ms=latency_ms,
-            cost=0.0,
-            retries=0,
-        )
 
         return AIAnalysis(
-            # TEMPORAL:
-            # Provider todavía no dispone de OLLAMA.
             provider=Provider.OLLAMA,
             model=self.model,
-            status=AnalysisStatus.ERROR,
+            status=status,
             category=AnalysisCategory.OTHER,
             urgency=AnalysisUrgency.CRITICAL,
             confidence=0.0,
-            summary="Ollama provider failed to produce an analysis.",
-            reasoning="The local model provider returned an error.",
+            summary="Ollama analysis failed.",
+            reasoning="No valid analysis was produced.",
             recommendation=Recommendation(
                 action=RecommendationAction.NO_ACTION,
                 target_lap=None,
                 tyre_compound=None,
                 confidence=0.0,
-                rationale=(
-                    "No recommendation available because "
-                    "the provider failed."
-                ),
+                rationale="No recommendation available.",
                 alternative_action=None,
             ),
-            metrics=metrics,
+            metrics=ModelMetrics(
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+                latency_ms=latency_ms,
+                cost=0.0,
+                retries=0,
+            ),
             error=error,
         )
