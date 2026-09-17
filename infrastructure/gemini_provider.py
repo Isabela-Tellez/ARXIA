@@ -58,7 +58,7 @@ class GeminiAnalysisResponse(BaseModel):
 
 class GeminiProvider:
     """Proveedor de IA basado en Google Gemini."""
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-3.6-flash"
 
     def __init__(
         self,

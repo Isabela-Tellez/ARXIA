@@ -13,7 +13,6 @@ from core.application.decision_engine import DecisionEngine
 from core.application.risk_engine import RiskEngine
 from core.domain.enums import DecisionType, ReviewStatus
 from core.domain.schemas import (
-    AIAnalysis,
     ArxiaResult,
     HumanReview,
     RaceEvent,
