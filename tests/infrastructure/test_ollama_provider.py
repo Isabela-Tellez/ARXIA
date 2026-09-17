@@ -92,9 +92,9 @@ def mock_post_error(monkeypatch, error):
 @pytest.mark.parametrize(
     ("attribute", "expected"),
     [
-        ("model", "llama3.2:1b"),
+        ("model", "llama3.2:3b"),
         ("base_url", "http://localhost:11434"),
-        ("timeout", 60.0),
+        ("timeout", 120.0),
         ("num_predict", 256),
     ],
 )

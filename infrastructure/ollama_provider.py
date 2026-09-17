@@ -59,9 +59,9 @@ class OllamaAnalysisResponse(BaseModel):
 class OllamaProvider:
     """Proveedor de IA local basado en Ollama."""
 
-    DEFAULT_MODEL = "llama3.2:1b"
+    DEFAULT_MODEL = "llama3.2:3b"
     DEFAULT_BASE_URL = "http://localhost:11434"
-    DEFAULT_TIMEOUT = 60.0
+    DEFAULT_TIMEOUT = 120.0
     DEFAULT_NUM_PREDICT = 256
 
     def __init__(
@@ -179,6 +179,7 @@ class OllamaProvider:
         """Construye el prompt enviado a Ollama."""
 
         weather = race_event.weather
+
         weather_context = (
             "unknown"
             if weather is None
@@ -231,18 +232,110 @@ Analyze only the information provided.
 Do not invent telemetry, lap times, tyre degradation values,
 weather measurements, or race events.
 
-Identify the most appropriate strategic response.
+IMPORTANT:
+event_type and category are different fields.
 
-Give a confidence value between 0 and 1.
-Give recommendation confidence between 0 and 1.
+event_type describes the type of event that occurred.
+category describes the category of your analysis.
 
-Use only the allowed enum values for category, urgency, action,
-tyre compound, and alternative action.
+NEVER copy the event_type value into category.
+
+Allowed category values are ONLY:
+"tyre_strategy"
+"race_strategy"
+"weather"
+"mechanical"
+"safety"
+"position"
+"other"
+
+Allowed urgency values are ONLY:
+"low"
+"medium"
+"high"
+"critical"
+
+Allowed recommendation action values are ONLY:
+"pit_stop"
+"stay_out"
+"push"
+"manage_tyres"
+"defend"
+"attack"
+"no_action"
+
+Allowed tyre compound values are ONLY:
+"soft"
+"medium"
+"hard"
+"intermediate"
+"wet"
+
+The JSON structure MUST be exactly:
+
+{{
+  "category": "...",
+  "urgency": "...",
+  "confidence": 0.0,
+  "summary": "...",
+  "reasoning": "...",
+  "recommendation": {{
+    "action": "...",
+    "target_lap": null,
+    "tyre_compound": null,
+    "confidence": 0.0,
+    "rationale": "...",
+    "alternative_action": null
+  }}
+}}
+
+The top-level fields MUST be exactly:
+
+category
+urgency
+confidence
+summary
+reasoning
+recommendation
+
+The recommendation object fields MUST be exactly:
+
+action
+target_lap
+tyre_compound
+confidence
+rationale
+alternative_action
+
+Do NOT create fields such as:
+
+"action" at the top level
+"recommendation_confidence"
+"event_type"
+"recommendation_action"
+or any other additional fields.
+
+If event_type is "strategic_opportunity", the category MUST NOT be
+"strategic_opportunity".
+
+For a strategic opportunity, use an allowed category such as
+"race_strategy" when appropriate.
 
 Set target_lap to null when a target lap cannot be reasonably determined.
+
 Set tyre_compound to null when a tyre change is not applicable.
 
+Set alternative_action to null when there is no reasonable alternative.
+
+Confidence values must be numbers between 0 and 1.
+
+The main confidence belongs at the top level.
+
+The recommendation confidence MUST be inside the recommendation object
+under the field "confidence".
+
 Keep the summary concise.
+
 Explain the reasoning behind the recommendation.
 
 Return ONLY valid JSON.
