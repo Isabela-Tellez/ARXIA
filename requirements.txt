@@ -3,6 +3,7 @@ google-genai==2.23.0
 uvicorn==0.52.4
 openai==3.14.0
 pydantic==2.13.5
+python-dotenv==1.2.3
 pytest==8.4.2
 pytest-cov==7.1.0
 requests==2.34.2

@@ -1,67 +1,94 @@
 """
 Rutas HTTP de ARXIA.
+
 La API expone el motor de decisión multimodelo
 Gemini vs Ollama.
 """
+
 import os
+
+from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
+
 from core.application.arxia_core import ArxiaCore
 from core.application.comparison_engine import ComparisonEngine
 from core.application.decision_engine import DecisionEngine
 from core.application.risk_engine import RiskEngine
 from core.domain.schemas import ArxiaResult, RaceEvent
+
 from infrastructure.gemini_provider import GeminiProvider
 from infrastructure.ollama_provider import OllamaProvider
+
 from infrastructure.mocks import (
     MockGeminiProvider,
     MockOllamaProvider,
 )
+
+
+# ============================================================================
+# ENVIRONMENT
+# ============================================================================
+
+load_dotenv()
+
+
+# ============================================================================
+# ROUTER
+# ============================================================================
+
 router = APIRouter()
+
 
 # ============================================================================
 # HEALTH CHECK
 # ============================================================================
+
 @router.get("/")
 def health_check() -> dict[str, str]:
     """Comprueba que la API de ARXIA está disponible."""
+
     return {
         "application": "ARXIA",
         "status": "running",
         "architecture": "gemini_vs_ollama",
     }
 
+
 # ============================================================================
 # CORE FACTORY
 # ============================================================================
+
 def create_arxia_core() -> ArxiaCore:
     """
     Construye ARXIA utilizando los proveedores configurados.
+
     Modos disponibles:
 
     - mock: utiliza MockGeminiProvider y MockOllamaProvider.
     - real: utiliza GeminiProvider y OllamaProvider.
-
-    Por defecto se utiliza mock para facilitar el desarrollo local.
     """
 
     provider_mode = os.getenv(
         "ARXIA_PROVIDER_MODE",
         "mock",
-    ).lower()
+    ).strip().lower()
 
     comparison_engine = ComparisonEngine()
     risk_engine = RiskEngine()
     decision_engine = DecisionEngine()
 
     if provider_mode == "mock":
+
         gemini_provider = MockGeminiProvider()
         ollama_provider = MockOllamaProvider()
 
     elif provider_mode == "real":
+
         gemini_provider = GeminiProvider()
         ollama_provider = OllamaProvider()
 
     else:
+
         raise ValueError(
             f"Modo de proveedores no soportado: {provider_mode}"
         )
@@ -73,12 +100,20 @@ def create_arxia_core() -> ArxiaCore:
         risk_engine=risk_engine,
         decision_engine=decision_engine,
     )
+
+
+# ============================================================================
+# ARXIA CORE
+# ============================================================================
+
 # Instancia global utilizada por el endpoint /analyze.
 arxia_core = create_arxia_core()
+
 
 # ============================================================================
 # ARXIA ENDPOINT
 # ============================================================================
+
 @router.post(
     "/analyze",
     response_model=ArxiaResult,
@@ -88,6 +123,7 @@ def analyze_race_event(
 ) -> ArxiaResult:
     """
     Recibe un evento de motorsport y ejecuta el pipeline completo de ARXIA.
+
     Flujo:
 
     1. Gemini analiza el evento.
@@ -99,9 +135,11 @@ def analyze_race_event(
     """
 
     try:
+
         return arxia_core.process(race_event)
 
     except Exception as exc:
+
         raise HTTPException(
             status_code=500,
             detail=f"Error procesando el evento con ARXIA: {exc}",
