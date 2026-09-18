@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <!-- =====================================================
+             SIDEBAR
+             ===================================================== -->
+
+        <aside class="sidebar">
+
+            <!-- BRAND -->
+
+            <div class="brand">
+
+                <img
+                    src="/assets/logo-icon.webp"
+                    alt="ARXIA — Intelligent Decision Engine"
+                    class="brand-logo"
+                >
+
+            </div>
+
+
+            <!-- =================================================
+                 NAVIGATION
+                 ================================================= -->
+
+            <nav class="navigation">
+
+                <!-- RACE -->
+
+                <div class="nav-section">
+
+                    <div class="nav-section-label">
+                        RACE
+                    </div>
+
+                    <button
+                        class="nav-item active"
+                        data-module="overview"
+                    >
+                        <span class="nav-icon">🏁</span>
+                        <span>Overview</span>
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-module="timeline"
+                    >
+                        <span class="nav-icon">🏎️</span>
+                        <span>Race Timeline</span>
+                    </button>
+
+                </div>
+
+
+                <!-- INTELLIGENCE -->
+
+                <div class="nav-section">
+
+                    <div class="nav-section-label">
+                        INTELLIGENCE
+                    </div>
+
+                    <button
+                        class="nav-item"
+                        data-module="analysis"
+                    >
+                        <span class="nav-icon">🧠</span>
+                        <span>AI Analysis</span>
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-module="comparison"
+                    >
+                        <span class="nav-icon">⚖️</span>
+                        <span>Model Comparison</span>
+                    </button>
+
+                </div>
+
+
+                <!-- DECISION -->
+
+                <div class="nav-section">
+
+                    <div class="nav-section-label">
+                        DECISION
+                    </div>
+
+                    <button
+                        class="nav-item"
+                        data-module="risk"
+                    >
+                        <span class="nav-icon">⚠️</span>
+                        <span>Risk Engine</span>
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-module="decision"
+                    >
+                        <span class="nav-icon">🎯</span>
+                        <span>ARXIA Decision</span>
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        data-module="review"
+                    >
+                        <span class="nav-icon">👤</span>
+                        <span>Human Review</span>
+                    </button>
+
+                </div>
+
+
+                <!-- SYSTEM -->
+
+                <div class="nav-section">
+
+                    <div class="nav-section-label">
+                        SYSTEM
+                    </div>
+
+                    <button
+                        class="nav-item"
+                        data-module="metrics"
+                    >
+                        <span class="nav-icon">📊</span>
+                        <span>System Metrics</span>
+                    </button>
+
+                </div>
+
+            </nav>
+
+
+            <!-- =================================================
+                 SIDEBAR STATUS
+                 ================================================= -->
+
+            <div class="sidebar-footer">
+
+                <div class="system-label">
+                    SYSTEM STATUS
+                </div>
+
+
+                <div class="system-status">
+
+                    <div class="status-item">
+
+                        <span class="status-dot online"></span>
+
+                        <span>AI ENGINE</span>
+
+                        <span class="status-text">
+                            ONLINE
+                        </span>
+
+                    </div>
+
+
+                    <div class="status-item">
+
+                        <span class="status-dot online"></span>
+
+                        <span>TELEMETRY</span>
+
+                        <span class="status-text">
+                            LIVE
+                        </span>
+
+                    </div>
+
+
+                    <div class="status-item">
+
+                        <span class="status-dot online"></span>
+
+                        <span>DECISION CORE</span>
+
+                        <span class="status-text">
+                            READY
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="simulation-badge">
+
+                    <span class="simulation-dot"></span>
+
+                    SIMULATION MODE
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =====================================================
+             MAIN CONTENT
+             ===================================================== -->
+
+        <main class="main-content">
+
+
+            <!-- =================================================
+                 TOPBAR
+                 ================================================= -->
+
+            <header class="topbar">
+
+                <div class="race-context">
+
+                    <div class="context-label">
+                        CURRENT EVENT
+                    </div>
+
+                    <div class="context-value">
+                        ARXIA RACE SIMULATION
+                    </div>
+
+                    <div class="context-session">
+                        SESSION // RACE CONTROL
+                    </div>
+
+                </div>
+
+
+                <div class="topbar-right">
+
+                    <div class="mode-indicator">
+
+                        <span class="mode-dot"></span>
+
+                        SIMULATION
+
+                    </div>
+
+
+                    <div
+                        class="system-time"
+                        id="system-time"
+                    >
+                        --:--:--
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <!-- =================================================
+                 PAGE CONTENT
+                 ================================================= -->
+
+            <section class="page-content">
+
+
+                <!-- PAGE HEADER -->
+
+                <header class="page-header">
+
+                    <div>
+
+                        <div class="eyebrow">
+                            01 / RACE CONTROL
+                        </div>
+
+
+                        <h1 id="page-title">
+                            ARXIA RACE CONTROL
+                        </h1>
+
+
+                        <p id="page-description">
+                            What is happening right now?
+                        </p>
+
+                    </div>
+
+
+                    <div class="live-indicator">
+
+                        <span></span>
+
+                        LIVE SYSTEM
+
+                    </div>
+
+                </header>
+
+
+                <!-- =================================================
+                     MODULE CONTAINER
+                     ================================================= -->
+
+                <div id="module-container">
+
+                    <div class="module-placeholder">
+
+                        <div class="placeholder-mark">
+                            🏁
+                        </div>
+
+
+                        <div class="placeholder-kicker">
+                            MODULE 01
+                        </div>
+
+
+                        <h2>
+                            ARXIA RACE CONTROL
+                        </h2>
+
+
+                        <p>
+                            What is happening right now?
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     ARXIA EVENT ANALYZER FORM
+                     ================================================= -->
+
+                <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px; color: #fff;">Simular Evento de Carrera</h3>
+                    <form id="analysis-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Circuito</label>
+                            <input type="text" id="circuit" value="Monaco" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Sesión</label>
+                            <input type="text" id="session" value="race" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Vuelta (Lap)</label>
+                            <input type="number" id="lap" value="20" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Piloto</label>
+                            <input type="text" id="driver" value="Test Driver" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Equipo</label>
+                            <input type="text" id="team" value="Test Team" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Posición</label>
+                            <input type="number" id="position" value="5" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Tipo de Evento</label>
+                            <input type="text" id="event_type" value="strategic_opportunity" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px;" required>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #aaa;">Descripción</label>
+                            <textarea id="description" style="width: 100%; padding: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 4px; height: 60px;" required>Strategic opportunity detected during the race.</textarea>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <button type="submit" style="padding: 10px 20px; background: #e10600; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Ejecutar Análisis ARXIA</button>
+                        </div>
+                    </form>
+                    <div id="analysis-result" style="margin-top: 20px; white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #00ffcc; max-height: 300px; overflow-y: auto;"></div>
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <!-- =========================================================
+         JAVASCRIPT
+         ========================================================= -->
+
+    <script src="js/app.js"></script>
+    <script>
+        document.getElementById('analysis-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('analysis-result');
+            resultDiv.textContent = 'Procesando análisis con ARXIA...';
+
+            const payload = {
+                circuit: document.getElementById('circuit').value,
+                session: document.getElementById('session').value,
+                lap: parseInt(document.getElementById('lap').value),
+                driver: document.getElementById('driver').value,
+                team: document.getElementById('team').value,
+                position: parseInt(document.getElementById('position').value),
+                event_type: document.getElementById('event_type').value,
+                description: document.getElementById('description').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:8000/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                resultDiv.textContent = `Error: ${err.message}`;
+            }
+        });
+    </script>
+
+</body>
+
+</html>

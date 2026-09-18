@@ -43,7 +43,7 @@ router = APIRouter()
 # HEALTH CHECK
 # ============================================================================
 
-@router.get("/")
+@router.get("/health")
 def health_check() -> dict[str, str]:
     """Comprueba que la API de ARXIA está disponible."""
 
@@ -144,3 +144,25 @@ def analyze_race_event(
             status_code=500,
             detail=f"Error procesando el evento con ARXIA: {exc}",
         ) from exc
+
+@router.post("/update")
+def update_race_state(event: RaceEvent) -> dict:
+    result = arxia_core.process(event)
+    return {"confidence": result.decision.confidence, "description": result.decision.description}
+
+@router.get("/api/state")
+def get_race_state() -> dict:
+    return {
+        "lap": 42,
+        "totalLaps": 67,
+        "position": 4,
+        "gap": "+3.821 s",
+        "speed": 287,
+        "tyres": "MEDIUM",
+        "tyreAge": 18,
+        "fuel": 18.4,
+        "tyreTemp": 91,
+        "engineTemp": 104,
+        "ers": 72,
+        "trackStatus": "GREEN"
+    }
