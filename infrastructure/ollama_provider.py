@@ -1,13 +1,9 @@
 """
 Proveedor real basado en Ollama para ARXIA.
-
-Se encarga exclusivamente de comunicarse con Ollama y transformar
-su respuesta estructurada en un AIAnalysis válido del dominio.
-
-No contiene lógica de comparación, evaluación de riesgo ni decisión.
 """
 
 import json
+import os
 import time
 
 import requests
@@ -21,12 +17,12 @@ from core.domain.enums import (
     RecommendationAction,
     TyreCompound,
 )
-from core.domain.schemas import AIAnalysis, ModelMetrics, RaceEvent, Recommendation
-
-
-# ============================================================================
-# OLLAMA RESPONSE SCHEMA
-# ============================================================================
+from core.domain.schemas import (
+    AIAnalysis,
+    ModelMetrics,
+    RaceEvent,
+    Recommendation,
+)
 
 
 class OllamaRecommendation(BaseModel):
@@ -41,7 +37,7 @@ class OllamaRecommendation(BaseModel):
 
 
 class OllamaAnalysisResponse(BaseModel):
-    """Payload estructurado que esperamos recibir de Ollama."""
+    """Payload estructurado esperado de Ollama."""
 
     category: AnalysisCategory
     urgency: AnalysisUrgency
@@ -49,11 +45,6 @@ class OllamaAnalysisResponse(BaseModel):
     summary: str
     reasoning: str
     recommendation: OllamaRecommendation
-
-
-# ============================================================================
-# PROVIDER
-# ============================================================================
 
 
 class OllamaProvider:
@@ -66,41 +57,53 @@ class OllamaProvider:
 
     def __init__(
         self,
-        model: str = DEFAULT_MODEL,
-        base_url: str = DEFAULT_BASE_URL,
+        model: str | None = None,
+        base_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         num_predict: int = DEFAULT_NUM_PREDICT,
     ):
         """Inicializa el proveedor Ollama."""
 
-        if not model.strip():
-            raise ValueError("Ollama model cannot be empty")
+        self.model = (
+            model
+            or os.getenv("OLLAMA_MODEL")
+            or self.DEFAULT_MODEL
+        ).strip()
 
-        if not base_url.strip():
-            raise ValueError("Ollama base URL cannot be empty")
+        self.base_url = (
+            base_url
+            or os.getenv("OLLAMA_BASE_URL")
+            or self.DEFAULT_BASE_URL
+        ).strip().rstrip("/")
+
+        if not self.model:
+            raise ValueError(
+                "Ollama model cannot be empty"
+            )
+
+        if not self.base_url:
+            raise ValueError(
+                "Ollama base URL cannot be empty"
+            )
 
         if timeout <= 0:
-            raise ValueError("Ollama timeout must be greater than zero")
+            raise ValueError(
+                "Ollama timeout must be greater than zero"
+            )
 
         if num_predict <= 0:
-            raise ValueError("Ollama num_predict must be greater than zero")
+            raise ValueError(
+                "Ollama num_predict must be greater than zero"
+            )
 
-        self.model = model.strip()
-        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.num_predict = num_predict
 
-    # =========================================================================
-    # PUBLIC API
-    # =========================================================================
-
-    def analyze(self, race_event: RaceEvent) -> AIAnalysis:
-        """
-        Analiza un evento de carrera utilizando Ollama.
-
-        Ollama produce únicamente el análisis estratégico.
-        El provider convierte la respuesta externa en AIAnalysis.
-        """
+    def analyze(
+        self,
+        race_event: RaceEvent,
+    ) -> AIAnalysis:
+        """Analiza un evento de carrera utilizando Ollama."""
 
         started_at = time.perf_counter()
 
@@ -119,6 +122,7 @@ class OllamaProvider:
                 },
                 timeout=self.timeout,
             )
+
             response.raise_for_status()
 
             parsed = self._parse_response(response)
@@ -149,7 +153,12 @@ class OllamaProvider:
                 (time.perf_counter() - started_at) * 1000,
             )
 
-        except (ValidationError, ValueError, KeyError, TypeError) as exc:
+        except (
+            ValidationError,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as exc:
             return self._build_error_analysis(
                 AnalysisStatus.INVALID,
                 f"Invalid Ollama response: {exc}",
@@ -170,12 +179,10 @@ class OllamaProvider:
                 (time.perf_counter() - started_at) * 1000,
             )
 
-    # =========================================================================
-    # PROMPT
-    # =========================================================================
-
     @staticmethod
-    def _build_prompt(race_event: RaceEvent) -> str:
+    def _build_prompt(
+        race_event: RaceEvent,
+    ) -> str:
         """Construye el prompt enviado a Ollama."""
 
         weather = race_event.weather
@@ -271,124 +278,88 @@ Allowed tyre compound values are ONLY:
 "intermediate"
 "wet"
 
-The JSON structure MUST be exactly:
+Return ONLY valid JSON using exactly this structure:
 
 {{
-  "category": "...",
-  "urgency": "...",
-  "confidence": 0.0,
-  "summary": "...",
-  "reasoning": "...",
-  "recommendation": {{
-    "action": "...",
-    "target_lap": null,
-    "tyre_compound": null,
-    "confidence": 0.0,
-    "rationale": "...",
-    "alternative_action": null
-  }}
+"category": "...",
+"urgency": "...",
+"confidence": 0.0,
+"summary": "...",
+"reasoning": "...",
+"recommendation": {{
+"action": "...",
+"target_lap": null,
+"tyre_compound": null,
+"confidence": 0.0,
+"rationale": "...",
+"alternative_action": null
+}}
 }}
 
-The top-level fields MUST be exactly:
+Confidence values must be numbers between 0 and 1.
 
-category
-urgency
-confidence
-summary
-reasoning
-recommendation
-
-The recommendation object fields MUST be exactly:
-
-action
-target_lap
-tyre_compound
-confidence
-rationale
-alternative_action
-
-Do NOT create fields such as:
-
-"action" at the top level
-"recommendation_confidence"
-"event_type"
-"recommendation_action"
-or any other additional fields.
-
-If event_type is "strategic_opportunity", the category MUST NOT be
-"strategic_opportunity".
-
-For a strategic opportunity, use an allowed category such as
-"race_strategy" when appropriate.
-
-Set target_lap to null when a target lap cannot be reasonably determined.
+Set target_lap to null when it cannot be reasonably determined.
 
 Set tyre_compound to null when a tyre change is not applicable.
 
 Set alternative_action to null when there is no reasonable alternative.
-
-Confidence values must be numbers between 0 and 1.
-
-The main confidence belongs at the top level.
-
-The recommendation confidence MUST be inside the recommendation object
-under the field "confidence".
-
-Keep the summary concise.
-
-Explain the reasoning behind the recommendation.
-
-Return ONLY valid JSON.
 """.strip()
 
-    # =========================================================================
-    # RESPONSE PARSING
-    # =========================================================================
-
     @staticmethod
-    def _parse_response(response) -> OllamaAnalysisResponse:
-        """
-        Convierte la respuesta HTTP de Ollama en un DTO estructurado.
-
-        Ollama devuelve el contenido generado dentro del campo
-        "response". Ese contenido debe ser JSON válido.
-        """
+    def _parse_response(
+        response,
+    ) -> OllamaAnalysisResponse:
+        """Convierte la respuesta HTTP de Ollama en un DTO."""
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise ValueError("Ollama returned invalid HTTP JSON") from exc
+            raise ValueError(
+                "Ollama returned invalid HTTP JSON"
+            ) from exc
 
         raw_response = data.get("response", "")
 
         if not isinstance(raw_response, str):
-            raise ValueError("Ollama response field must be a string")
+            raise ValueError(
+                "Ollama response field must be a string"
+            )
 
         if not raw_response.strip():
-            raise ValueError("Ollama returned an empty response")
+            raise ValueError(
+                "Ollama returned an empty response"
+            )
 
         try:
             parsed_json = json.loads(raw_response)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Ollama returned invalid JSON: {exc}") from exc
+            raise ValueError(
+                f"Ollama returned invalid JSON: {exc}"
+            ) from exc
 
-        return OllamaAnalysisResponse.model_validate(parsed_json)
-
-    # =========================================================================
-    # METRICS
-    # =========================================================================
+        return OllamaAnalysisResponse.model_validate(
+            parsed_json
+        )
 
     @staticmethod
-    def _build_metrics(response, latency_ms: float) -> ModelMetrics:
-        """Construye las métricas de la ejecución de Ollama."""
+    def _build_metrics(
+        response,
+        latency_ms: float,
+    ) -> ModelMetrics:
+        """Construye las métricas de Ollama."""
 
         try:
             data = response.json()
         except ValueError:
             data = {}
 
-        input_tokens = int(data.get("prompt_eval_count", 0) or 0)
-        output_tokens = int(data.get("eval_count", 0) or 0)
+        input_tokens = int(
+            data.get("prompt_eval_count", 0) or 0
+        )
+
+        output_tokens = int(
+            data.get("eval_count", 0) or 0
+        )
 
         return ModelMetrics(
             input_tokens=input_tokens,
@@ -399,23 +370,13 @@ Return ONLY valid JSON.
             retries=0,
         )
 
-    # =========================================================================
-    # ERRORS
-    # =========================================================================
-
     def _build_error_analysis(
         self,
         status: AnalysisStatus,
         error: str,
         latency_ms: float,
     ) -> AIAnalysis:
-        """
-        Construye un AIAnalysis para una ejecución fallida.
-
-        Los errores permanecen dentro del contrato de AIAnalysis
-        para que RiskEngine y DecisionEngine puedan reaccionar
-        de forma determinista.
-        """
+        """Construye un AIAnalysis para una ejecución fallida."""
 
         return AIAnalysis(
             provider=Provider.OLLAMA,

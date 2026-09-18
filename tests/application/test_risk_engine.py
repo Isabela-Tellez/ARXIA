@@ -25,28 +25,31 @@ from core.domain.schemas import (
     Recommendation,
 )
 
+
 # ============================================================================
 # HELPERS
 # ============================================================================
 
 def build_metrics() -> ModelMetrics:
     return ModelMetrics(
-        input_tokens = 100,
-        output_tokens = 50,
-        total_tokens = 150,
-        latency_ms = 100.0,
-        cost = 0.0,
-        retries = 0,
+        input_tokens=100,
+        output_tokens=50,
+        total_tokens=150,
+        latency_ms=100.0,
+        cost=0.0,
+        retries=0,
     )
+
 
 def build_recommendation() -> Recommendation:
     return Recommendation(
-        action = RecommendationAction.PIT_STOP,
-        target_lap = 20,
-        tyre_compound = TyreCompound.MEDIUM,
-        confidence = 0.90,
-        rationale ="Pit stop is strategically recommended"
+        action=RecommendationAction.PIT_STOP,
+        target_lap=20,
+        tyre_compound=TyreCompound.MEDIUM,
+        confidence=0.90,
+        rationale="Pit stop is strategically recommended",
     )
+
 
 def build_analysis(
     *,
@@ -55,37 +58,39 @@ def build_analysis(
     confidence: float = 0.90,
 ) -> AIAnalysis:
     return AIAnalysis(
-        provider = provider,
-        model ="test-model",
-        status = status,
-        category = AnalysisCategory.RACE_STRATEGY,
-        urgency = AnalysisUrgency.MEDIUM,
-        confidence = confidence,
-        summary ="Strategic analysis.",
-        reasoning ="Strategic reasoning.",
-        recommendation = build_recommendation(),
-        metrics = build_metrics(),
-        error = (
+        provider=provider,
+        model="test-model",
+        status=status,
+        category=AnalysisCategory.RACE_STRATEGY,
+        urgency=AnalysisUrgency.MEDIUM,
+        confidence=confidence,
+        summary="Strategic analysis.",
+        reasoning="Strategic reasoning.",
+        recommendation=build_recommendation(),
+        metrics=build_metrics(),
+        error=(
             "Provider failed."
             if status != AnalysisStatus.SUCCESS
             else None
-        )
+        ),
     )
+
 
 def build_event(
     *,
-    event_type: EventType = EventType.STRATEGIC_OPPORTUNITY
+    event_type: EventType = EventType.STRATEGIC_OPPORTUNITY,
 ) -> RaceEvent:
     return RaceEvent(
-        circuit ="Monza",
-        session = RaceSession.RACE,
-        lap = 20,
-        driver ="Driver",
-        team ="Team",
-        position = 5,
-        event_type = event_type,
-        description ="Strategic race event.",
+        circuit="Monza",
+        session=RaceSession.RACE,
+        lap=20,
+        driver="Driver",
+        team="Team",
+        position=5,
+        event_type=event_type,
+        description="Strategic race event.",
     )
+
 
 def build_comparison(
     *,
@@ -112,20 +117,23 @@ def build_comparison(
 def build_engine() -> RiskEngine:
     return RiskEngine(confidence_threshold=0.80)
 
+
 # ============================================================================
 # INITIALIZATION
 # ============================================================================
 
 def test_engine_rejects_invalid_confidence_threshold():
     with pytest.raises(ValueError):
-        RiskEngine(confidence_threshold = -0.1)
+        RiskEngine(confidence_threshold=-0.1)
 
     with pytest.raises(ValueError):
-        RiskEngine(confidence_threshold = 1.1)
+        RiskEngine(confidence_threshold=1.1)
+
 
 def test_engine_accepts_boundary_confidence_threshold():
-    assert RiskEngine(confidence_threshold = 0.0)
-    assert RiskEngine(confidence_threshold = 1.0)
+    assert RiskEngine(confidence_threshold=0.0)
+    assert RiskEngine(confidence_threshold=1.0)
+
 
 # ============================================================================
 # LOW RISK
@@ -151,10 +159,10 @@ def test_agreement_high_confidence_produces_low_risk():
     assert result.risk_level == RiskLevel.LOW
     assert result.risk_factors == []
 
+
 # ============================================================================
 # PROVIDER FAILURE
 # ============================================================================
-
 
 def test_provider_failure_adds_high_risk():
     engine = build_engine()
@@ -171,15 +179,14 @@ def test_provider_failure_adds_high_risk():
         comparison=build_comparison(),
     )
 
-    assert result.risk_score == 40
-    assert result.risk_level == RiskLevel.MEDIUM
+    assert result.risk_score == 50
+    assert result.risk_level == RiskLevel.HIGH
     assert result.risk_factors[0].type == RiskFactorType.PROVIDER_FAILURE
 
 
 # ============================================================================
 # MODEL DISAGREEMENT
 # ============================================================================
-
 
 def test_model_disagreement_adds_risk():
     engine = build_engine()
@@ -205,7 +212,6 @@ def test_model_disagreement_adds_risk():
 # LOW CONFIDENCE
 # ============================================================================
 
-
 def test_low_confidence_adds_risk():
     engine = build_engine()
 
@@ -222,18 +228,21 @@ def test_low_confidence_adds_risk():
         comparison=build_comparison(),
     )
 
-    assert result.risk_score == 20
-    assert result.risk_level == RiskLevel.LOW
-    assert (
-        result.risk_factors[0].type
-        == RiskFactorType.LOW_CONFIDENCE
-    )
+    assert result.risk_score == 30
+    assert result.risk_level == RiskLevel.MEDIUM
+
+    factor_types = {
+        factor.type
+        for factor in result.risk_factors
+    }
+
+    assert RiskFactorType.LOW_CONFIDENCE in factor_types
+    assert RiskFactorType.CONFIDENCE_GAP in factor_types
 
 
 # ============================================================================
 # CONFIDENCE GAP
 # ============================================================================
-
 
 def test_large_confidence_gap_adds_risk():
     engine = build_engine()
@@ -267,7 +276,6 @@ def test_large_confidence_gap_adds_risk():
 # TIMING
 # ============================================================================
 
-
 def test_target_lap_disagreement_adds_risk():
     engine = build_engine()
 
@@ -291,7 +299,6 @@ def test_target_lap_disagreement_adds_risk():
 # ============================================================================
 # EVENT CRITICALITY
 # ============================================================================
-
 
 @pytest.mark.parametrize(
     "event_type",
@@ -324,7 +331,6 @@ def test_critical_event_adds_risk(event_type):
 # INSUFFICIENT INFORMATION
 # ============================================================================
 
-
 def test_insufficient_comparison_adds_risk():
     engine = build_engine()
 
@@ -350,7 +356,6 @@ def test_insufficient_comparison_adds_risk():
 # ============================================================================
 # SCORE BOUNDARIES
 # ============================================================================
-
 
 @pytest.mark.parametrize(
     ("score", "expected"),

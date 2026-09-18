@@ -2,7 +2,9 @@
 Motor determinista de comparación de ARXIA.
 
 Compara los análisis producidos por Gemini y Ollama y genera
-un objeto Comparison. No depende de ningún proveedor de IA.
+un objeto Comparison.
+
+No depende de ningún proveedor de IA.
 """
 
 from core.domain.enums import (
@@ -42,26 +44,45 @@ class ComparisonEngine:
             )
 
         fields = [
+            # ----------------------------------------------------------
+            # CATEGORY
+            # ----------------------------------------------------------
             self._compare_field(
                 ComparisonField.CATEGORY,
                 gemini_analysis.category.value,
                 ollama_analysis.category.value,
             ),
+
+            # ----------------------------------------------------------
+            # URGENCY
+            # ----------------------------------------------------------
             self._compare_field(
                 ComparisonField.URGENCY,
                 gemini_analysis.urgency.value,
                 ollama_analysis.urgency.value,
             ),
+
+            # ----------------------------------------------------------
+            # ACTION
+            # ----------------------------------------------------------
             self._compare_field(
                 ComparisonField.ACTION,
                 gemini_analysis.recommendation.action.value,
                 ollama_analysis.recommendation.action.value,
             ),
+
+            # ----------------------------------------------------------
+            # TARGET LAP
+            # ----------------------------------------------------------
             self._compare_field(
                 ComparisonField.TARGET_LAP,
                 gemini_analysis.recommendation.target_lap,
                 ollama_analysis.recommendation.target_lap,
             ),
+
+            # ----------------------------------------------------------
+            # TYRE COMPOUND
+            # ----------------------------------------------------------
             self._compare_field(
                 ComparisonField.TYRE_COMPOUND,
                 self._enum_value(
@@ -71,6 +92,10 @@ class ComparisonEngine:
                     ollama_analysis.recommendation.tyre_compound
                 ),
             ),
+
+            # ----------------------------------------------------------
+            # CONFIDENCE
+            # ----------------------------------------------------------
             self._compare_confidence(
                 gemini_analysis.confidence,
                 ollama_analysis.confidence,
@@ -94,9 +119,9 @@ class ComparisonEngine:
             ),
         )
 
-    # ======================================================================
-    # VALIDATION
-    # ======================================================================
+    # ==================================================================
+    # VALIDACIÓN
+    # ==================================================================
 
     @staticmethod
     def _analyses_are_comparable(
@@ -112,9 +137,9 @@ class ComparisonEngine:
             and ollama_analysis.status == AnalysisStatus.SUCCESS
         )
 
-    # ======================================================================
-    # FIELD COMPARISON
-    # ======================================================================
+    # ==================================================================
+    # COMPARACIÓN DE CAMPOS
+    # ==================================================================
 
     @staticmethod
     def _compare_field(
@@ -156,8 +181,10 @@ class ComparisonEngine:
 
         if difference == 0:
             agreement = AgreementLevel.AGREE
+
         elif difference <= 0.20:
             agreement = AgreementLevel.CLOSE
+
         else:
             agreement = AgreementLevel.DISAGREE
 
@@ -168,9 +195,9 @@ class ComparisonEngine:
             agreement=agreement,
         )
 
-    # ======================================================================
-    # STRATEGIC AGREEMENT
-    # ======================================================================
+    # ==================================================================
+    # ACUERDO ESTRATÉGICO
+    # ==================================================================
 
     @staticmethod
     def _strategic_agreement(
@@ -180,22 +207,71 @@ class ComparisonEngine:
         """
         Determina el acuerdo estratégico.
 
-        La acción es el elemento estratégico principal.
-        Una diferencia en target_lap no implica necesariamente
-        desacuerdo estratégico.
+        Para ARXIA, la estrategia considera:
+
+        - acción;
+        - compuesto de neumático.
+
+        El target_lap no es un requisito obligatorio para determinar
+        el acuerdo estratégico porque uno de los modelos puede no
+        proporcionar una vuelta concreta.
+
+        Ejemplo:
+
+            Gemini:
+                pit_stop
+                intermediate
+
+            Ollama:
+                pit_stop
+                soft
+
+        Resultado:
+
+            DISAGREE
         """
 
-        gemini_action = gemini_analysis.recommendation.action
-        ollama_action = ollama_analysis.recommendation.action
+        # --------------------------------------------------------------
+        # 1. ACCIÓN
+        # --------------------------------------------------------------
 
-        if gemini_action == ollama_action:
-            return AgreementLevel.AGREE
+        gemini_action = (
+            gemini_analysis.recommendation.action.value
+        )
 
-        return AgreementLevel.DISAGREE
+        ollama_action = (
+            ollama_analysis.recommendation.action.value
+        )
 
-    # ======================================================================
+        if gemini_action != ollama_action:
+            return AgreementLevel.DISAGREE
+
+        # --------------------------------------------------------------
+        # 2. COMPUESTO
+        # --------------------------------------------------------------
+
+        # IMPORTANTE:
+        # Este método es @staticmethod, por lo que NO puede utilizar
+        # self._enum_value().
+        #
+        # Utilizamos directamente ComparisonEngine._enum_value().
+
+        gemini_compound = ComparisonEngine._enum_value(
+            gemini_analysis.recommendation.tyre_compound
+        )
+
+        ollama_compound = ComparisonEngine._enum_value(
+            ollama_analysis.recommendation.tyre_compound
+        )
+
+        if gemini_compound != ollama_compound:
+            return AgreementLevel.DISAGREE
+
+        return AgreementLevel.AGREE
+
+    # ==================================================================
     # HELPERS
-    # ======================================================================
+    # ==================================================================
 
     @staticmethod
     def _target_lap_difference(
@@ -204,17 +280,29 @@ class ComparisonEngine:
     ) -> int | None:
         """Calcula la diferencia absoluta entre vueltas objetivo."""
 
-        gemini_lap = gemini_analysis.recommendation.target_lap
-        ollama_lap = ollama_analysis.recommendation.target_lap
+        gemini_lap = (
+            gemini_analysis.recommendation.target_lap
+        )
+
+        ollama_lap = (
+            ollama_analysis.recommendation.target_lap
+        )
 
         if gemini_lap is None or ollama_lap is None:
             return None
 
-        return abs(gemini_lap - ollama_lap)
+        return abs(
+            gemini_lap - ollama_lap
+        )
 
     @staticmethod
     def _enum_value(value):
-        """Obtiene el valor de un enum o devuelve None."""
+        """
+        Obtiene el valor de un enum.
+
+        Si el valor es None, devuelve None.
+        Si es un enum, devuelve .value.
+        """
 
         if value is None:
             return None

@@ -33,14 +33,7 @@ class DecisionEngine:
         self,
         confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
     ):
-        """
-        Inicializa el motor con el umbral mínimo de confianza.
-
-        Args:
-            confidence_threshold:
-                Confianza mínima requerida por cada modelo
-                para permitir una decisión automática.
-        """
+        """Inicializa el motor con el umbral mínimo de confianza."""
 
         if not 0.0 <= confidence_threshold <= 1.0:
             raise ValueError(
@@ -48,6 +41,10 @@ class DecisionEngine:
             )
 
         self.confidence_threshold = confidence_threshold
+
+    # ==================================================================
+    # DECISIÓN PRINCIPAL
+    # ==================================================================
 
     def decide(
         self,
@@ -59,109 +56,118 @@ class DecisionEngine:
         """
         Genera la decisión final de ARXIA.
 
-        La decisión sigue un enfoque conservador:
+        La automatización solo está permitida cuando:
 
-        1. Si un proveedor falla → revisión humana.
-        2. Si el riesgo es crítico → revisión humana.
-        3. Si el riesgo es alto → revisión humana.
-        4. Si los modelos no están suficientemente de acuerdo
-           → revisión humana.
-        5. Si la confianza es insuficiente → revisión humana.
-        6. En cualquier otro caso → decisión automática.
+        - ambos proveedores son válidos;
+        - ambos análisis terminaron correctamente;
+        - la comparación está completada;
+        - existe acuerdo estratégico;
+        - las recomendaciones son suficientemente confiables;
+        - el riesgo final es LOW.
+
+        Cualquier otra situación requiere revisión humana.
         """
 
-        # ------------------------------------------------------------------
-        # Regla 1: Fallo de proveedor
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # 1. VALIDACIÓN DE PROVEEDORES
+        # --------------------------------------------------------------
 
         if not self._both_models_succeeded(
             gemini_analysis,
             ollama_analysis,
         ):
             return self._human_review_decision(
-                risk_level=RiskLevel.HIGH,
+                risk_level=self._review_risk(
+                    risk_assessment.risk_level,
+                    RiskLevel.HIGH,
+                ),
                 reason=DecisionReason.PROVIDER_FAILURE,
                 gemini_analysis=gemini_analysis,
                 ollama_analysis=ollama_analysis,
             )
 
-        # ------------------------------------------------------------------
-        # Regla 2: Riesgo crítico
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # 2. RIESGO NO AUTOMATIZABLE
+        # --------------------------------------------------------------
 
-        if risk_assessment.risk_level == RiskLevel.CRITICAL:
+        if risk_assessment.risk_level in (
+            RiskLevel.CRITICAL,
+            RiskLevel.HIGH,
+            RiskLevel.MEDIUM,
+        ):
             return self._human_review_decision(
-                risk_level=RiskLevel.CRITICAL,
-                reason=DecisionReason.CRITICAL_RISK,
-                gemini_analysis=gemini_analysis,
-                ollama_analysis=ollama_analysis,
-            )
-
-        # ------------------------------------------------------------------
-        # Regla 3: Riesgo alto
-        # ------------------------------------------------------------------
-
-        if risk_assessment.risk_level == RiskLevel.HIGH:
-            return self._human_review_decision(
-                risk_level=RiskLevel.HIGH,
-                reason=DecisionReason.HIGH_RISK,
-                gemini_analysis=gemini_analysis,
-                ollama_analysis=ollama_analysis,
-            )
-
-        # ------------------------------------------------------------------
-        # Regla 4: Comparación insuficiente o desacuerdo
-        # ------------------------------------------------------------------
-
-        if not self._comparison_supports_automation(comparison):
-            return self._human_review_decision(
-                risk_level=self._safe_review_risk(
+                risk_level=risk_assessment.risk_level,
+                reason=self._risk_reason(
                     risk_assessment.risk_level
+                ),
+                gemini_analysis=gemini_analysis,
+                ollama_analysis=ollama_analysis,
+            )
+
+        # --------------------------------------------------------------
+        # 3. COMPARACIÓN
+        # --------------------------------------------------------------
+
+        if not self._comparison_supports_automation(
+            comparison
+        ):
+            return self._human_review_decision(
+                risk_level=self._review_risk(
+                    risk_assessment.risk_level,
+                    RiskLevel.MEDIUM,
                 ),
                 reason=DecisionReason.MODEL_DISAGREEMENT,
                 gemini_analysis=gemini_analysis,
                 ollama_analysis=ollama_analysis,
             )
 
-        # ------------------------------------------------------------------
-        # Regla 5: Confianza insuficiente
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # 4. CONFIANZA
+        # --------------------------------------------------------------
 
         if not self._confidence_is_sufficient(
             gemini_analysis,
             ollama_analysis,
         ):
             return self._human_review_decision(
-                risk_level=RiskLevel.MEDIUM,
+                risk_level=self._review_risk(
+                    risk_assessment.risk_level,
+                    RiskLevel.MEDIUM,
+                ),
                 reason=DecisionReason.LOW_CONFIDENCE,
                 gemini_analysis=gemini_analysis,
                 ollama_analysis=ollama_analysis,
             )
 
-        # ------------------------------------------------------------------
-        # Regla 6: Información insuficiente
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # 5. ACUERDO ESTRATÉGICO
+        # --------------------------------------------------------------
 
-        if risk_assessment.risk_level == RiskLevel.MEDIUM:
+        if not self._strategic_agreement_supports_automation(
+            comparison
+        ):
             return self._human_review_decision(
-                risk_level=RiskLevel.MEDIUM,
-                reason=DecisionReason.INSUFFICIENT_INFORMATION,
+                risk_level=self._review_risk(
+                    risk_assessment.risk_level,
+                    RiskLevel.MEDIUM,
+                ),
+                reason=DecisionReason.MODEL_DISAGREEMENT,
                 gemini_analysis=gemini_analysis,
                 ollama_analysis=ollama_analysis,
             )
 
-        # ------------------------------------------------------------------
-        # Regla 7: Modelos alineados + bajo riesgo
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # 6. AUTOMATIZACIÓN
+        # --------------------------------------------------------------
 
         return self._automatic_decision(
             gemini_analysis=gemini_analysis,
             ollama_analysis=ollama_analysis,
         )
 
-    # ======================================================================
+    # ==================================================================
     # VALIDACIONES
-    # ======================================================================
+    # ==================================================================
 
     @staticmethod
     def _both_models_succeeded(
@@ -178,21 +184,27 @@ class DecisionEngine:
         )
 
     @staticmethod
+    def _strategic_agreement_supports_automation(
+        comparison: Comparison,
+    ) -> bool:
+        """Comprueba que existe acuerdo estratégico explícito."""
+
+        return (
+            comparison.strategic_agreement is not None
+            and comparison.strategic_agreement.value == "agree"
+        )
+
+    @staticmethod
     def _comparison_supports_automation(
         comparison: Comparison,
     ) -> bool:
         """
-        Determina si la comparación permite automatizar.
+        Comprueba que la comparación está completamente disponible.
 
-        Solo una comparación completada con acuerdo estratégico
-        explícito puede continuar hacia una decisión automática.
+        Una comparación incompleta requiere revisión humana.
         """
 
-        return (
-            comparison.status.value == "completed"
-            and comparison.strategic_agreement is not None
-            and comparison.strategic_agreement.value == "agree"
-        )
+        return comparison.status.value == "completed"
 
     def _confidence_is_sufficient(
         self,
@@ -202,45 +214,66 @@ class DecisionEngine:
         """Comprueba la confianza mínima de ambos modelos."""
 
         return (
-            gemini_analysis.confidence >= self.confidence_threshold
-            and ollama_analysis.confidence >= self.confidence_threshold
+            gemini_analysis.confidence
+            >= self.confidence_threshold
+            and ollama_analysis.confidence
+            >= self.confidence_threshold
             and gemini_analysis.recommendation.confidence
             >= self.confidence_threshold
             and ollama_analysis.recommendation.confidence
             >= self.confidence_threshold
         )
 
+    # ==================================================================
+    # HELPERS DE RIESGO
+    # ==================================================================
+
     @staticmethod
-    def _safe_review_risk(
-        risk_level: RiskLevel,
+    def _review_risk(
+        current_risk: RiskLevel,
+        minimum_risk: RiskLevel,
     ) -> RiskLevel:
         """
-        Normaliza el riesgo utilizado para una revisión humana.
-
-        Nunca permite que un desacuerdo sea representado como LOW.
+        Garantiza que una revisión humana nunca se represente con
+        un nivel de riesgo inferior al mínimo indicado.
         """
 
-        if risk_level == RiskLevel.LOW:
-            return RiskLevel.MEDIUM
+        order = {
+            RiskLevel.LOW: 0,
+            RiskLevel.MEDIUM: 1,
+            RiskLevel.HIGH: 2,
+            RiskLevel.CRITICAL: 3,
+        }
 
-        return risk_level
+        if order[current_risk] < order[minimum_risk]:
+            return minimum_risk
 
-    # ======================================================================
-    # DECISIONES
-    # ======================================================================
+        return current_risk
+
+    @staticmethod
+    def _risk_reason(
+        risk_level: RiskLevel,
+    ) -> DecisionReason:
+        """Convierte el nivel de riesgo en la razón correspondiente."""
+
+        if risk_level == RiskLevel.CRITICAL:
+            return DecisionReason.CRITICAL_RISK
+
+        if risk_level == RiskLevel.HIGH:
+            return DecisionReason.HIGH_RISK
+
+        return DecisionReason.INSUFFICIENT_INFORMATION
+
+    # ==================================================================
+    # SELECCIÓN DE RECOMENDACIÓN
+    # ==================================================================
 
     @staticmethod
     def _select_action(
         gemini_analysis: AIAnalysis,
         ollama_analysis: AIAnalysis,
     ) -> RecommendationAction:
-        """
-        Selecciona la acción estratégica.
-
-        En una situación de acuerdo, ambos modelos deberían proponer
-        la misma acción. Gemini actúa como primera referencia y Ollama
-        como segunda validación.
-        """
+        """Selecciona la acción únicamente cuando ambos coinciden."""
 
         gemini_action = gemini_analysis.recommendation.action
         ollama_action = ollama_analysis.recommendation.action
@@ -248,9 +281,6 @@ class DecisionEngine:
         if gemini_action == ollama_action:
             return gemini_action
 
-        # Esta situación no debería llegar a una decisión automática,
-        # pero se utiliza un fallback seguro para mantener el objeto
-        # ArxiaDecision válido.
         return RecommendationAction.NO_ACTION
 
     @staticmethod
@@ -258,7 +288,12 @@ class DecisionEngine:
         gemini_analysis: AIAnalysis,
         ollama_analysis: AIAnalysis,
     ) -> int | None:
-        """Selecciona la vuelta objetivo cuando ambos modelos coinciden."""
+        """
+        Selecciona la vuelta objetivo.
+
+        Si ambos modelos indican una vuelta, deben coincidir para
+        automatizar. Si ambos coinciden en None, se mantiene None.
+        """
 
         gemini_lap = gemini_analysis.recommendation.target_lap
         ollama_lap = ollama_analysis.recommendation.target_lap
@@ -266,37 +301,41 @@ class DecisionEngine:
         if gemini_lap == ollama_lap:
             return gemini_lap
 
-        if gemini_lap is None:
-            return ollama_lap
-
-        if ollama_lap is None:
-            return gemini_lap
-
-        return round((gemini_lap + ollama_lap) / 2)
+        return None
 
     @staticmethod
     def _select_tyre_compound(
         gemini_analysis: AIAnalysis,
         ollama_analysis: AIAnalysis,
     ):
-        """Selecciona el compuesto cuando existe acuerdo."""
+        """
+        Selecciona el compuesto.
 
-        gemini_compound = (
-            gemini_analysis.recommendation.tyre_compound
-        )
+        Si ambos modelos proporcionan el mismo valor, se utiliza ese
+        valor. Si uno de ellos no proporciona información, se utiliza
+        el valor disponible del otro modelo.
 
-        ollama_compound = (
-            ollama_analysis.recommendation.tyre_compound
-        )
+        Si ambos proporcionan valores diferentes, no se selecciona
+        ningún compuesto automáticamente.
+        """
 
-        if gemini_compound == ollama_compound:
+        gemini_compound = gemini_analysis.recommendation.tyre_compound
+        ollama_compound = ollama_analysis.recommendation.tyre_compound
+
+        if (
+            gemini_compound is not None
+            and ollama_compound is not None
+        ):
+            if gemini_compound == ollama_compound:
+                return gemini_compound
+
+            return None
+
+        if gemini_compound is not None:
             return gemini_compound
 
-        if gemini_compound is None:
+        if ollama_compound is not None:
             return ollama_compound
-
-        if ollama_compound is None:
-            return gemini_compound
 
         return None
 
@@ -305,12 +344,7 @@ class DecisionEngine:
         gemini_analysis: AIAnalysis,
         ollama_analysis: AIAnalysis,
     ) -> float:
-        """
-        Calcula una confianza conservadora.
-
-        Se utiliza la menor confianza de los dos modelos para evitar
-        que un modelo muy confiado oculte la incertidumbre del otro.
-        """
+        """Calcula una confianza conservadora."""
 
         return min(
             gemini_analysis.confidence,
@@ -318,6 +352,10 @@ class DecisionEngine:
             gemini_analysis.recommendation.confidence,
             ollama_analysis.recommendation.confidence,
         )
+
+    # ==================================================================
+    # DECISIÓN AUTOMÁTICA
+    # ==================================================================
 
     def _automatic_decision(
         self,
@@ -364,6 +402,10 @@ class DecisionEngine:
             ),
         )
 
+    # ==================================================================
+    # REVISIÓN HUMANA
+    # ==================================================================
+
     @staticmethod
     def _human_review_decision(
         risk_level: RiskLevel,
@@ -372,33 +414,96 @@ class DecisionEngine:
         ollama_analysis: AIAnalysis,
     ) -> ArxiaDecision:
         """
-        Construye una decisión que requiere intervención humana.
+        Construye una decisión de revisión humana.
 
-        Para revisión humana utilizamos la recomendación de Gemini
-        como propuesta inicial, pero nunca la consideramos una
-        decisión automática.
+        La recomendación de un modelo válido se presenta únicamente
+        como propuesta para el revisor.
         """
 
-        recommendation = gemini_analysis.recommendation
+        gemini_valid = (
+            gemini_analysis.provider == Provider.GEMINI
+            and gemini_analysis.status == AnalysisStatus.SUCCESS
+        )
+
+        ollama_valid = (
+            ollama_analysis.provider == Provider.OLLAMA
+            and ollama_analysis.status == AnalysisStatus.SUCCESS
+        )
+
+        # --------------------------------------------------------------
+        # RECOMENDACIÓN DE REFERENCIA
+        # --------------------------------------------------------------
+
+        if gemini_valid:
+            recommendation = gemini_analysis.recommendation
+
+        elif ollama_valid:
+            recommendation = ollama_analysis.recommendation
+
+        else:
+            recommendation = gemini_analysis.recommendation
+
+        # --------------------------------------------------------------
+        # MODELOS VÁLIDOS
+        # --------------------------------------------------------------
+
+        successful_analyses = [
+            analysis
+            for analysis in (
+                gemini_analysis,
+                ollama_analysis,
+            )
+            if (
+                analysis.status == AnalysisStatus.SUCCESS
+                and analysis.provider in (
+                    Provider.GEMINI,
+                    Provider.OLLAMA,
+                )
+            )
+        ]
+
+        # --------------------------------------------------------------
+        # CONFIANZA
+        # --------------------------------------------------------------
+
+        successful_confidences = [
+            analysis.confidence
+            for analysis in successful_analyses
+        ]
+
+        confidence = (
+            min(successful_confidences)
+            if successful_confidences
+            else 0.0
+        )
+
+        # --------------------------------------------------------------
+        # MODELOS DE APOYO
+        # --------------------------------------------------------------
+
+        supporting_models = [
+            analysis.provider
+            for analysis in successful_analyses
+        ]
+
+        # --------------------------------------------------------------
+        # RESULTADO
+        # --------------------------------------------------------------
 
         return ArxiaDecision(
             action=recommendation.action,
             target_lap=recommendation.target_lap,
             tyre_compound=recommendation.tyre_compound,
-            confidence=min(
-                gemini_analysis.confidence,
-                ollama_analysis.confidence,
-            ),
+            confidence=confidence,
             decision=DecisionType.HUMAN_REVIEW,
             risk_level=risk_level,
             reason=reason,
-            supporting_models=[
-                Provider.GEMINI,
-                Provider.OLLAMA,
-            ],
+            supporting_models=supporting_models,
             rationale=(
                 "ARXIA requires human review because the current "
                 "analysis does not satisfy the conditions for safe "
-                "automatic decision-making."
+                "automatic decision-making. The available valid model "
+                "recommendation is provided only as a proposal for "
+                "human review."
             ),
         )
